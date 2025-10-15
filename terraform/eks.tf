@@ -160,7 +160,7 @@ resource "helm_release" "monitoring" {
           enabled          = true
           ingressClassName = "nginx"
           hosts            = ["grafana.nainika.store"]
-          # No TLS config
+          # No TLS config for now
         }
       }
       prometheus = {

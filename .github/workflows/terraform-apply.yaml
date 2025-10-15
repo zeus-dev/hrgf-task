@@ -96,27 +96,27 @@ jobs:
         run: exit 1
       
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: terraform apply -auto-approve -input=false
       
       - name: Get EKS cluster name
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         id: cluster
         run: |
           echo "cluster_name=$(terraform output -raw cluster_name)" >> $GITHUB_OUTPUT
       
       - name: Update kubeconfig
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ steps.cluster.outputs.cluster_name }}
       
       - name: Create Namespaces
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
           kubectl apply -f ../k8s/namespaces/namespaces.yaml
       
       - name: Install NGINX Ingress Controller
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
           helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
           helm repo update
@@ -130,7 +130,7 @@ jobs:
             --wait
       
       - name: Install Prometheus & Grafana
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo update
@@ -142,7 +142,7 @@ jobs:
             --wait
       
       - name: Get LoadBalancer DNS
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
           echo "Waiting for LoadBalancer..."
           kubectl wait --namespace ingress-nginx \

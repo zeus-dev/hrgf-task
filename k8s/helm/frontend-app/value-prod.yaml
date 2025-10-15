@@ -4,7 +4,7 @@ environment: production
 replicaCount: 3
 
 image:
-  repository: nainika/frontend-app
+  repository: zeusdev27/myhello-app
   tag: "latest"
 
 resources:
@@ -53,4 +53,3 @@ grafana:
 
 prometheus:
   enabled: true
-  

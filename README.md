@@ -305,8 +305,8 @@ npm start
 # Access at http://localhost:8080
 
 # Build Docker image locally
-docker build -t nainika/frontend-app:local .
-docker run -p 8080:8080 nainika/frontend-app:local
+docker build -t zeusdev27/myhello-app:local .
+docker run -p 8080:8080 zeusdev27/myhello-app:local
 
 # Test Kubernetes manifests
 helm template ./k8s/helm/frontend-app -f ./k8s/helm/frontend-app/values.yaml

@@ -11,7 +11,7 @@
 
 # env:
 #   AWS_REGION: ap-south-1
-#   DOCKER_REPOSITORY: nainika/frontend-app
+#   DOCKER_REPOSITORY: zeusdev27/myhello-app
 #   EKS_CLUSTER_NAME: nasa-eks
 #   NAMESPACE: stage
 #   ENVIRONMENT: stage
@@ -101,7 +101,7 @@
 
 # env:
 #   AWS_REGION: ap-south-1
-#   DOCKER_REPOSITORY: nainika/frontend-app
+#   DOCKER_REPOSITORY: zeusdev27/myhello-app
 #   EKS_CLUSTER_NAME: nasa-eks
 #   NAMESPACE: stage
 #   ENVIRONMENT: stage

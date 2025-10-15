@@ -4,7 +4,7 @@ environment: staging
 replicaCount: 2
 
 image:
-  repository: nainika/frontend-app
+  repository: zeusdev27/myhello-app
   tag: "staging"
 
 resources:

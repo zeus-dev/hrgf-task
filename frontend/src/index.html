@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nainika Store</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+        
+        .container {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+        
+        h1 {
+            color: #667eea;
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+        
+        p {
+            color: #666;
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
+        
+        .info {
+            background: #f7fafc;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-top: 2rem;
+        }
+        
+        .info h3 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        
+        .status {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .status-item {
+            padding: 0.5rem 1rem;
+            background: #e6fffa;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .status-item.active {
+            background: #c6f6d5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Nainika Store</h1>
+        <div class="badge" id="env-badge">Production Environment</div>
+        
+        <p>
+            Welcome to Nainika Store! Your application is successfully deployed on AWS EKS 
+            with Terraform automation and GitHub Actions CI/CD pipeline.
+        </p>
+        
+        <div class="info">
+            <h3>Deployment Info</h3>
+            <p><strong>Cluster:</strong> nasa-eks</p>
+            <p><strong>Namespace:</strong> <span id="namespace">prod</span></p>
+            <p><strong>Ingress:</strong> NGINX Ingress Controller</p>
+            <p><strong>Monitoring:</strong> Prometheus + Grafana</p>
+        </div>
+        
+        <div class="status">
+            <div class="status-item active">✅ Healthy</div>
+            <div class="status-item active">🔒 TLS Enabled</div>
+            <div class="status-item active">📊 Monitored</div>
+        </div>
+    </div>
+    
+    <script>
+        // Detect environment from hostname
+        const hostname = window.location.hostname;
+        const envBadge = document.getElementById('env-badge');
+        const namespaceEl = document.getElementById('namespace');
+        
+        if (hostname.includes('stage')) {
+            envBadge.textContent = 'Staging Environment';
+            envBadge.style.background = '#f6ad55';
+            namespaceEl.textContent = 'stage';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+graph TB
+    subgraph "GitHub"
+        A[GitHub Repository]
+        B[GitHub Actions]
+    end
+    
+    subgraph "AWS Cloud"
+        subgraph "VPC"
+            C[EKS Cluster]
+            subgraph "EKS Nodes"
+                D[Node Group]
+            end
+        end
+        E[Application Load Balancer]
+        F[Route53/DNS]
+    end
+    
+    subgraph "Cloudflare"
+        G[DNS - nainika.store]
+        H[TLS Certificates]
+    end
+    
+    subgraph "K8s Namespaces"
+        subgraph "prod"
+            I[Frontend App - Prod]
+            J[Ingress - Prod]
+        end
+        subgraph "stage"
+            K[Frontend App - Stage]
+            L[Ingress - Stage]
+        end
+        subgraph "monitoring"
+            M[Prometheus]
+            N[Grafana]
+        end
+        subgraph "ingress-nginx"
+            O[NGINX Ingress Controller]
+        end
+    end
+    
+    A --> B
+    B -->|Terraform Apply| C
+    B -->|Docker Build & Push| P[ECR]
+    B -->|Helm Deploy| I
+    B -->|Helm Deploy| K
+    G --> E
+    E --> O
+    O --> J
+    O --> L
+    J --> I
+    L --> K
+    M -.->|Monitors| C
+    N -.->|Visualizes| M
+    H -.->|TLS| J
+    H -.->|TLS| L
+    P --> I
+    P --> K

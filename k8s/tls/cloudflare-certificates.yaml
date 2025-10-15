@@ -1,0 +1,82 @@
+---
+# Cloudflare Cluster Issuer for cert-manager
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: cloudflare-issuer
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: devops@nainika.store
+    privateKeySecretRef:
+      name: cloudflare-issuer-account-key
+    solvers:
+    - dns01:
+        cloudflare:
+          apiTokenSecretRef:
+            name: cloudflare-api-token
+            key: api-token
+      selector:
+        dnsNames:
+        - '*.nainika.store'
+        - 'nainika.store'
+
+---
+# Secret for Cloudflare API Token
+# You need to create this secret manually with your Cloudflare API token
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloudflare-api-token
+  namespace: cert-manager
+type: Opaque
+stringData:
+  api-token: "YOUR_CLOUDFLARE_API_TOKEN"
+
+---
+# Certificate for main domain
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: nainika-store-cert
+  namespace: prod
+spec:
+  secretName: nainika-store-tls
+  issuerRef:
+    name: cloudflare-issuer
+    kind: ClusterIssuer
+  dnsNames:
+  - nainika.store
+  - '*.nainika.store'
+
+---
+# Certificate for staging domain
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: staging-nainika-store-cert
+  namespace: stage
+spec:
+  secretName: staging-nainika-store-tls
+  issuerRef:
+    name: cloudflare-issuer
+    kind: ClusterIssuer
+  dnsNames:
+  - staging.nainika.store
+
+---
+# Certificate for monitoring
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: monitoring-nainika-store-cert
+  namespace: monitoring
+spec:
+  secretName: grafana-nainika-store-tls
+  issuerRef:
+    name: cloudflare-issuer
+    kind: ClusterIssuer
+  dnsNames:
+  - grafana.nainika.store
+  - prometheus.nainika.store
+  - alertmanager.nainika.store

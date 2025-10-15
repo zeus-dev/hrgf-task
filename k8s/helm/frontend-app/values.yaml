@@ -1,0 +1,146 @@
+# Default values for frontend-app
+replicaCount: 2
+
+image:
+  repository: nainika/frontend-app
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 2000
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "cloudflare-issuer"
+  hosts:
+    - host: nainika.store
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: nainika-store-tls
+      hosts:
+        - nainika.store
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Monitoring and observability
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    namespace: monitoring
+    labels:
+      app: frontend-app
+    interval: 30s
+    path: /health
+
+# Health checks
+healthCheck:
+  enabled: true
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Grafana dashboards configuration
+grafana:
+  dashboards:
+    enabled: true
+    # NGINX Ingress Controller dashboard
+    nginx_ingress:
+      id: 14314
+      title: "NGINX Ingress Controller"
+      url: "https://grafana.com/api/dashboards/14314/revisions/2/download"
+    
+    # Kubernetes cluster monitoring
+    kubernetes_cluster:
+      id: 7249
+      title: "Kubernetes Cluster Monitoring (via Prometheus)"
+      url: "https://grafana.com/api/dashboards/7249/revisions/1/download"
+    
+    # Pod monitoring
+    kubernetes_pods:
+      id: 6417
+      title: "Kubernetes Pods Monitoring"
+      url: "https://grafana.com/api/dashboards/6417/revisions/1/download"
+    
+    # Node exporter
+    node_exporter:
+      id: 1860
+      title: "Node Exporter Full"
+      url: "https://grafana.com/api/dashboards/1860/revisions/31/download"
+    
+    # Application performance
+    app_performance:
+      id: 3662
+      title: "Prometheus 2.0 Overview"
+      url: "https://grafana.com/api/dashboards/3662/revisions/2/download"
+
+# Prometheus configuration
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    endpoints:
+      - port: http
+        path: /health
+        interval: 30s

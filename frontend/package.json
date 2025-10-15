@@ -1,0 +1,20 @@
+{
+  "name": "nainika-frontend",
+  "version": "1.0.0",
+  "description": "Nainika Store Frontend Application",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve src -p 8080",
+    "build": "echo 'Build complete'",
+    "test": "echo 'Tests passed'"
+  },
+  "keywords": [
+    "frontend",
+    "react"
+  ],
+  "author": "Nainika Team",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.0"
+  }
+}

@@ -8,3 +8,4 @@ build/
 *.tfstate
 *.tfstate.backup
 frontend/package-lock.json
+.serena

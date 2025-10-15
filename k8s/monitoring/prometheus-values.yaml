@@ -78,14 +78,14 @@ grafana:
     enabled: true
     ingressClassName: "nginx"
     annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      cert-manager.io/cluster-issuer: "cloudflare-issuer"
+      # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      # cert-manager.io/cluster-issuer: "cloudflare-issuer"
     hosts:
       - grafana.nainika.store
-    tls:
-      - secretName: grafana-nainika-store-tls
-        hosts:
-          - grafana.nainika.store
+    # tls:
+    #   - secretName: grafana-nainika-store-tls
+    #     hosts:
+    #       - grafana.nainika.store
   
   # Dashboard providers
   dashboardProviders:

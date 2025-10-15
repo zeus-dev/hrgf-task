@@ -39,16 +39,21 @@ ingress:
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    cert-manager.io/cluster-issuer: "cloudflare-issuer"
+  # cert-manager.io/cluster-issuer: "cloudflare-issuer"
   hosts:
-    - host: nainika.store
+    - host: prod.nainika.store
       paths:
         - path: /
           pathType: Prefix
-  tls:
-    - secretName: nainika-store-tls
-      hosts:
-        - nainika.store
+    - host: stage.nainika.store
+      paths:
+        - path: /
+          pathType: Prefix
+    # Only use grafana.nainika.store for Grafana ingress in its own chart/values
+  # tls:
+  #   - secretName: nainika-store-tls
+  #     hosts:
+  #       - nainika.store
 
 resources:
   limits:

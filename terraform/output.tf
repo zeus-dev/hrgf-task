@@ -25,6 +25,7 @@ output "cluster_oidc_issuer_url" {
 }
 
 # VPC information
+
 output "vpc_id" {
   description = "ID of the VPC where the cluster is deployed"
   value       = module.vpc.vpc_id

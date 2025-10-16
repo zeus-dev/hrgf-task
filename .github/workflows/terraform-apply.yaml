@@ -97,7 +97,13 @@ jobs:
       
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply -auto-approve -input=false
+        run: |
+          # Import existing resources to avoid conflicts
+          terraform import aws_iam_policy.aws_load_balancer_controller arn:aws:iam::148450584786:policy/nasa-eks-aws-load-balancer-controller || true
+          terraform import module.eks.module.kms.aws_kms_alias.this[\"cluster\"] alias/eks/nasa-eks || true
+          terraform import module.eks.aws_cloudwatch_log_group.this[0] /aws/eks/nasa-eks/cluster || true
+          
+          terraform apply -auto-approve -input=false
       
       - name: Get EKS cluster name
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'

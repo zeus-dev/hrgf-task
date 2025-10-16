@@ -303,17 +303,13 @@ jobs:
         run: |
           set -e
           
-          # Install Prometheus Operator CRDs directly
+          # Install only ServiceMonitor CRD (needed for ingress controller)
           kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
-          kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
-          kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_podmonitors.yaml
-          kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_prometheuses.yaml
-          kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_alertmanagers.yaml
           
-          # Wait for CRDs to be established
+          # Wait for CRD to be established
           kubectl wait --for=condition=established --timeout=60s crd/servicemonitors.monitoring.coreos.com
           
-          echo "Prometheus CRDs installed successfully"
+          echo "ServiceMonitor CRD installed successfully"
       
       - name: Install NGINX Ingress Controller
         run: |

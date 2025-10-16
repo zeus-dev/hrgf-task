@@ -6,11 +6,15 @@ on:
       - main
     paths:
       - 'terraform/**'
+      - '.github/workflows/terraform-apply.yaml'
+      - 'k8s/**'
   pull_request:
     branches:
       - main
     paths:
       - 'terraform/**'
+      - '.github/workflows/terraform-apply.yaml'
+      - 'k8s/**'
   workflow_dispatch:
     inputs:
       action:
@@ -298,21 +302,16 @@ jobs:
       - name: Install Prometheus CRDs
         run: |
           set -e
-          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-          helm repo update
           
-          # Install only the CRDs from kube-prometheus-stack
-          helm upgrade --install prometheus-crds prometheus-community/kube-prometheus-stack \
-            --namespace monitoring \
-            --create-namespace \
-            --set kubeStateMetrics.enabled=false \
-            --set nodeExporter.enabled=false \
-            --set grafana.enabled=false \
-            --set prometheus.enabled=false \
-            --set alertmanager.enabled=false \
-            --set prometheusOperator.enabled=false \
-            --set defaultRules.enabled=false \
-            --wait --timeout=300s
+          # Install Prometheus Operator CRDs directly
+          kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+          kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
+          kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_podmonitors.yaml
+          kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_prometheuses.yaml
+          kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_alertmanagers.yaml
+          
+          # Wait for CRDs to be established
+          kubectl wait --for=condition=established --timeout=60s crd/servicemonitors.monitoring.coreos.com
           
           echo "Prometheus CRDs installed successfully"
       

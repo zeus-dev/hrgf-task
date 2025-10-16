@@ -18,7 +18,7 @@ module "eks" {
 
   # Use existing KMS key for cluster encryption
   cluster_encryption_config = {
-    provider_key_arn = "arn:aws:kms:ap-south-1:148450584786:key/cb1a325f-ff40-484b-aeae-6b2d1c8fad33"
+    provider_key_arn = "arn:aws:kms:ap-south-1:148450584786:key/e13fa105-c5a6-4049-ab9c-3046148bb956"
     resources        = ["secrets"]
   }
 

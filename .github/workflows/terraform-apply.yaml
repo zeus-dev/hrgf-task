@@ -31,12 +31,14 @@ env:
   AWS_REGION: ap-south-1
   TF_VERSION: 1.6.0
   TF_LOG: ${{ inputs.debug && 'DEBUG' || 'INFO' }}
+  S3_BUCKET: ${{ secrets.TF_STATE_BUCKET }}  # Move to secrets
+  DYNAMODB_TABLE: ${{ secrets.TF_STATE_LOCK_TABLE }}
 
 jobs:
-  terraform:
-    name: Terraform Apply
+  # Separate job for validation
+  validate:
+    name: Terraform Validate
     runs-on: ubuntu-latest
-    
     defaults:
       run:
         working-directory: terraform
@@ -57,142 +59,248 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
       
-      - name: Create S3 bucket and DynamoDB table for Terraform state
+      - name: Verify backend resources exist
         run: |
-          # Create S3 bucket if it doesn't exist
-          aws s3api create-bucket --bucket nainika-terraform-state --region ${{ env.AWS_REGION }} --create-bucket-configuration LocationConstraint=${{ env.AWS_REGION }} || true
-          aws s3api put-bucket-versioning --bucket nainika-terraform-state --versioning-configuration Status=Enabled || true
+          set -e
+          echo "Checking S3 bucket..."
+          aws s3api head-bucket --bucket ${{ env.S3_BUCKET }} --region ${{ env.AWS_REGION }}
           
-          # Create DynamoDB table for state locking if it doesn't exist
-          aws dynamodb create-table --table-name terraform-state-lock --attribute-definitions AttributeName=LockID,AttributeType=S --key-schema AttributeName=LockID,KeyType=HASH --billing-mode PAY_PER_REQUEST --region ${{ env.AWS_REGION }} || true
+          echo "Checking DynamoDB table..."
+          aws dynamodb describe-table --table-name ${{ env.DYNAMODB_TABLE }} --region ${{ env.AWS_REGION }}
       
       - name: Terraform Format Check
-        id: fmt
-        run: terraform fmt -check
-        continue-on-error: true
+        run: |
+          terraform fmt -check -recursive
+          if [ $? -ne 0 ]; then
+            echo "::error::Terraform files are not formatted. Run 'terraform fmt -recursive'"
+            exit 1
+          fi
       
       - name: Terraform Init
-        id: init
-        run: terraform init
+        run: terraform init -backend=true
       
       - name: Terraform Validate
-        id: validate
-        run: terraform validate -no-color
+        run: terraform validate
+
+  # Plan job for PRs
+  plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name == 'pull_request'
+    defaults:
+      run:
+        working-directory: terraform
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: true  # Enable outputs capture
+      
+      - name: Terraform Init
+        run: terraform init
       
       - name: Terraform Plan
         id: plan
-        if: github.event_name == 'pull_request'
-        run: terraform plan -no-color -input=false
+        run: |
+          terraform plan -no-color -input=false -out=tfplan
+          terraform show -no-color tfplan > plan_output.txt
         continue-on-error: true
       
-      - name: Update Pull Request
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: terraform/tfplan
+          retention-days: 5
+      
+      - name: Comment PR with plan
         uses: actions/github-script@v7
         if: github.event_name == 'pull_request'
-        env:
-          PLAN: ${{ steps.plan.outputs.stdout }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
-            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
-            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
-            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+            const fs = require('fs');
+            const planOutput = fs.readFileSync('terraform/plan_output.txt', 'utf8');
+            const truncatedPlan = planOutput.length > 65000 
+              ? planOutput.substring(0, 65000) + '\n\n... (truncated)'
+              : planOutput;
+            
+            const output = `#### Terraform Plan 📖 \`${{ steps.plan.outcome }}\`
             
             <details><summary>Show Plan</summary>
             
-            \`\`\`terraform\n
-            ${process.env.PLAN}
+            \`\`\`terraform
+            ${truncatedPlan}
             \`\`\`
             
             </details>
             
-            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
             
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: output
-            })
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && comment.body.includes('Terraform Plan')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: output
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: output
+              });
+            }
       
-      - name: Terraform Plan Status
+      - name: Plan Status Check
         if: steps.plan.outcome == 'failure'
         run: exit 1
+
+  # Apply job
+  apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: validate
+    if: |
+      (github.ref == 'refs/heads/main' && github.event_name == 'push') || 
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+    defaults:
+      run:
+        working-directory: terraform
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false  # Disable for output parsing
+      
+      - name: Terraform Init
+        run: terraform init
       
       - name: Terraform Apply
-        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
-        run: terraform apply -auto-approve -input=false
-      
-      - name: Terraform Destroy
-        if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy'
-        run: terraform destroy -auto-approve
-      
-      - name: Get EKS cluster name
-        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
-        id: cluster
+        id: apply
         run: |
-          # Using hardcoded cluster name since infrastructure already exists
-          echo "cluster_name=nasa-eks" >> $GITHUB_OUTPUT
+          terraform apply -auto-approve -input=false
+          terraform output -json > outputs.json
       
-      - name: Get current IAM identity
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        id: iam_identity
+      - name: Parse Terraform Outputs
+        id: outputs
         run: |
+          CLUSTER_NAME=$(jq -r '.cluster_name.value' outputs.json)
+          echo "cluster_name=$CLUSTER_NAME" >> $GITHUB_OUTPUT
+          echo "Cluster: $CLUSTER_NAME"
+      
+      - name: Configure EKS access for pipeline
+        run: |
+          set -e
           CURRENT_ARN=$(aws sts get-caller-identity --query Arn --output text)
-          echo "current_arn=$CURRENT_ARN" >> $GITHUB_OUTPUT
-      
-      - name: Add pipeline IAM role to EKS access
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          # Create access entry for the pipeline IAM role
-          aws eks create-access-entry \
-            --cluster-name ${{ steps.cluster.outputs.cluster_name }} \
-            --principal-arn ${{ steps.iam_identity.outputs.current_arn }} \
-            --type STANDARD \
-            --region ${{ env.AWS_REGION }} || true
+          CLUSTER_NAME="${{ steps.outputs.outputs.cluster_name }}"
           
-          # Associate admin policy with the access entry
+          echo "Adding IAM role to EKS cluster access..."
+          
+          # Create access entry (ignore if exists)
+          aws eks create-access-entry \
+            --cluster-name "$CLUSTER_NAME" \
+            --principal-arn "$CURRENT_ARN" \
+            --type STANDARD \
+            --region ${{ env.AWS_REGION }} 2>&1 | grep -v "ResourceInUseException" || true
+          
+          # Associate admin policy
           aws eks associate-access-policy \
-            --cluster-name ${{ steps.cluster.outputs.cluster_name }} \
-            --principal-arn ${{ steps.iam_identity.outputs.current_arn }} \
+            --cluster-name "$CLUSTER_NAME" \
+            --principal-arn "$CURRENT_ARN" \
             --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
             --access-scope type=cluster \
-            --region ${{ env.AWS_REGION }} || true
+            --region ${{ env.AWS_REGION }} 2>&1 | grep -v "ResourceInUseException" || true
       
       - name: Update kubeconfig
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
-          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ steps.cluster.outputs.cluster_name }}
+          aws eks update-kubeconfig \
+            --region ${{ env.AWS_REGION }} \
+            --name ${{ steps.outputs.outputs.cluster_name }}
+          
+          # Verify connectivity
+          kubectl cluster-info
+          kubectl get nodes
       
       - name: Create Namespaces
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           kubectl apply -f ../k8s/namespaces/namespaces.yaml
+          kubectl get namespaces
       
       - name: Install cert-manager
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
-          # Add cert-manager Helm repository
+          set -e
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
           
-          # Install cert-manager with CRDs
-          helm upgrade --install cert-manager jetstack/cert-manager \
+          # Check if already installed
+          if helm list -n cert-manager | grep -q cert-manager; then
+            echo "cert-manager already installed, upgrading..."
+            INSTALL_CMD="upgrade"
+          else
+            echo "Installing cert-manager..."
+            INSTALL_CMD="install"
+          fi
+          
+          helm $INSTALL_CMD cert-manager jetstack/cert-manager \
             --namespace cert-manager \
             --create-namespace \
             --values ../k8s/tls/cert-manager-values.yaml \
             --wait --timeout=300s
           
-          # Wait for cert-manager to be ready
-          kubectl wait --for=condition=Available deployment/cert-manager -n cert-manager --timeout=300s
-          kubectl wait --for=condition=Available deployment/cert-manager-webhook -n cert-manager --timeout=300s
-          kubectl wait --for=condition=Available deployment/cert-manager-cainjector -n cert-manager --timeout=300s
+          # Verify installation
+          kubectl wait --for=condition=Available deployment/cert-manager \
+            -n cert-manager --timeout=300s
+          kubectl wait --for=condition=Available deployment/cert-manager-webhook \
+            -n cert-manager --timeout=300s
+          kubectl wait --for=condition=Available deployment/cert-manager-cainjector \
+            -n cert-manager --timeout=300s
+          
+          echo "cert-manager installed successfully"
       
       - name: Install NGINX Ingress Controller
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
+          set -e
           helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
           helm repo update
+          
           helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
             --namespace ingress-nginx \
             --create-namespace \
@@ -204,53 +312,155 @@ jobs:
             --set controller.podAnnotations."prometheus\.io/scrape"=true \
             --set controller.podAnnotations."prometheus\.io/port"=10254 \
             --wait --timeout=300s
-      
-      - name: Wait for LoadBalancer and setup TLS
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          echo "Waiting for LoadBalancer to be ready..."
+          
+          echo "Waiting for LoadBalancer provisioning..."
           kubectl wait --namespace ingress-nginx \
             --for=condition=ready pod \
             --selector=app.kubernetes.io/component=controller \
             --timeout=300s
+      
+      - name: Configure TLS certificates
+        run: |
+          set -e
           
           # Get LoadBalancer DNS
-          LB_DNS=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-          echo "LoadBalancer DNS: $LB_DNS"
-          echo "⚠️  IMPORTANT: Point your domains to this LoadBalancer:"
-          echo "   grafana.nainika.store -> $LB_DNS"
-          echo "   prod.nainika.store -> $LB_DNS"
-          echo "   stage.nainika.store -> $LB_DNS"
+          LB_DNS=$(kubectl get svc -n ingress-nginx ingress-nginx-controller \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
           
-          # Apply Let's Encrypt cluster issuers and certificates
+          if [ -z "$LB_DNS" ]; then
+            echo "::error::Failed to get LoadBalancer DNS"
+            exit 1
+          fi
+          
+          echo "LoadBalancer DNS: $LB_DNS"
+          echo "lb_dns=$LB_DNS" >> $GITHUB_OUTPUT
+          
+          # Apply Let's Encrypt issuers and certificates
           kubectl apply -f ../k8s/tls/letsencrypt-certificates.yaml
+          
+          # Wait for certificates to be ready (with timeout)
+          echo "Waiting for certificates to be issued..."
+          for i in {1..30}; do
+            READY=$(kubectl get certificates -A -o json | \
+              jq -r '.items[] | select(.status.conditions[]? | select(.type=="Ready" and .status=="True")) | .metadata.name' | wc -l)
+            TOTAL=$(kubectl get certificates -A --no-headers | wc -l)
+            echo "Certificates ready: $READY/$TOTAL"
+            
+            if [ "$READY" -eq "$TOTAL" ] && [ "$TOTAL" -gt 0 ]; then
+              echo "All certificates issued successfully"
+              break
+            fi
+            
+            if [ "$i" -eq 30 ]; then
+              echo "::warning::Timeout waiting for certificates. Check manually."
+              kubectl get certificates -A
+            fi
+            
+            sleep 10
+          done
       
       - name: Install Prometheus & Grafana
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:
           GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
         run: |
+          set -e
+          
+          if [ -z "$GRAFANA_ADMIN_PASSWORD" ]; then
+            echo "::error::GRAFANA_ADMIN_PASSWORD secret not set"
+            exit 1
+          fi
+          
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo update
-          
-          # Substitute the Grafana password in values file
-          envsubst < ../k8s/monitoring/prometheus-values.yaml > /tmp/prometheus-values.yaml
           
           helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
             --namespace monitoring \
             --create-namespace \
-            --values /tmp/prometheus-values.yaml \
+            --values ../k8s/monitoring/prometheus-values.yaml \
+            --set grafana.adminPassword="$GRAFANA_ADMIN_PASSWORD" \
             --wait --timeout=600s
-      
-      - name: Get LoadBalancer DNS
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          echo "Waiting for LoadBalancer..."
-          kubectl wait --namespace ingress-nginx \
-            --for=condition=ready pod \
-            --selector=app.kubernetes.io/component=controller \
-            --timeout=300s
           
-          LB_DNS=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-          echo "LoadBalancer DNS: $LB_DNS"
-          echo "Configure this DNS in Cloudflare for nainika.store"
+          echo "Monitoring stack installed successfully"
+      
+      - name: Deployment Summary
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Cluster Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Cluster Name**: ${{ steps.outputs.outputs.cluster_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region**: ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          LB_DNS=$(kubectl get svc -n ingress-nginx ingress-nginx-controller \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          
+          echo "### LoadBalancer" >> $GITHUB_STEP_SUMMARY
+          echo "- **DNS**: \`$LB_DNS\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Required DNS Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "Point these domains to the LoadBalancer:" >> $GITHUB_STEP_SUMMARY
+          echo "- grafana.nainika.store → $LB_DNS" >> $GITHUB_STEP_SUMMARY
+          echo "- prod.nainika.store → $LB_DNS" >> $GITHUB_STEP_SUMMARY
+          echo "- stage.nainika.store → $LB_DNS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Installed Components" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ EKS Cluster" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ cert-manager" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ NGINX Ingress Controller" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Prometheus & Grafana" >> $GITHUB_STEP_SUMMARY
+
+  # Destroy job
+  destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy'
+    environment: 
+      name: production-destroy
+    defaults:
+      run:
+        working-directory: terraform
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      
+      - name: Terraform Init
+        run: terraform init
+      
+      - name: Cleanup Kubernetes resources
+        continue-on-error: true
+        run: |
+          # Try to cleanup Helm releases before destroying infrastructure
+          CLUSTER_NAME=$(terraform output -raw cluster_name 2>/dev/null || echo "")
+          
+          if [ -n "$CLUSTER_NAME" ]; then
+            aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name "$CLUSTER_NAME" || true
+            
+            helm uninstall kube-prometheus-stack -n monitoring || true
+            helm uninstall ingress-nginx -n ingress-nginx || true
+            helm uninstall cert-manager -n cert-manager || true
+            
+            # Wait for LoadBalancer deletion
+            sleep 30
+          fi
+      
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve
+      
+      - name: Destroy Summary
+        run: |
+          echo "## 🗑️ Destroy Complete" >> $GITHUB_STEP_SUMMARY
+          echo "All infrastructure has been destroyed." >> $GITHUB_STEP_SUMMARY

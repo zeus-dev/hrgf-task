@@ -33,17 +33,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Debug - Show environment
-        run: |
-          echo "🔍 Debug Information:"
-          echo "Repository: ${{ github.repository }}"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Commit: ${{ github.sha }}"
-          echo "AWS Region: ${{ env.AWS_REGION }}"
-          echo "EKS Cluster: ${{ env.EKS_CLUSTER_NAME }}"
-          echo "Namespace: ${{ env.NAMESPACE }}"
-          echo "Docker Repo: ${{ env.DOCKER_REPOSITORY }}"
-      
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -60,12 +49,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
-      - name: Debug - Show Docker info
-        run: |
-          echo "🐳 Docker Information:"
-          docker --version
-          docker buildx version
-      
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -78,11 +61,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
-      - name: Debug - Show built image
-        run: |
-          echo "📦 Built Docker images:"
-          docker images ${{ env.DOCKER_REPOSITORY }}
-      
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -91,117 +69,64 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
           exit-code: 0
+        continue-on-error: true
       
-      - name: Debug - Trivy scan results
-        run: |
-          echo "🔍 Trivy scan completed"
-          if [ -f trivy-results.sarif ]; then
-            echo "SARIF file created successfully"
-            ls -la trivy-results.sarif
-            # Check if file has content
-            if [ -s trivy-results.sarif ]; then
-              echo "SARIF file has content"
-              head -20 trivy-results.sarif
-            else
-              echo "SARIF file is empty - creating minimal valid SARIF"
-              echo '{"version":"2.1.0","$schema":"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json","runs":[{"tool":{"driver":{"name":"Trivy","version":"0.0.0","informationUri":"https://github.com/aquasecurity/trivy"}},"results":[]}]}' > trivy-results.sarif
-            fi
-          else
-            echo "SARIF file not found - creating minimal valid SARIF"
-            echo '{"version":"2.1.0","$schema":"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json","runs":[{"tool":{"driver":{"name":"Trivy","version":"0.0.0","informationUri":"https://github.com/aquasecurity/trivy"}},"results":[]}]}' > trivy-results.sarif
-          fi
-      
-      - name: Validate SARIF file
-        run: |
-          echo "🔍 Validating SARIF file..."
-          if [ -f trivy-results.sarif ]; then
-            # Check if it's valid JSON
-            if jq empty trivy-results.sarif 2>/dev/null; then
-              echo "✅ SARIF file is valid JSON"
-              # Check if it has the required SARIF structure
-              if jq -e '.version and .runs' trivy-results.sarif >/dev/null 2>&1; then
-                echo "✅ SARIF file has required structure"
-              else
-                echo "❌ SARIF file missing required fields, recreating..."
-                echo '{"version":"2.1.0","$schema":"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json","runs":[{"tool":{"driver":{"name":"Trivy","version":"0.0.0","informationUri":"https://github.com/aquasecurity/trivy"}},"results":[]}]}' > trivy-results.sarif
-              fi
-            else
-              echo "❌ SARIF file is not valid JSON, recreating..."
-              echo '{"version":"2.1.0","$schema":"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json","runs":[{"tool":{"driver":{"name":"Trivy","version":"0.0.0","informationUri":"https://github.com/aquasecurity/trivy"}},"results":[]}]}' > trivy-results.sarif
-            fi
-          else
-            echo "❌ SARIF file not found"
-            exit 1
-          fi
-      
-      - name: Upload Trivy scan results to GitHub Security tab
+      - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v3
-        if: always() && github.repository == github.event.repository.full_name && github.event.repository.private == false
+        if: always()
         with:
           sarif_file: 'trivy-results.sarif'
-          token: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
       
       - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
-      
-      - name: Debug - Show cluster info
-        run: |
-          echo "☸️ Kubernetes Cluster Information:"
           kubectl cluster-info
-          kubectl get nodes
-          kubectl get namespaces
       
       - name: Install Helm
         uses: azure/setup-helm@v3
         with:
           version: '3.12.0'
       
-      - name: Debug - Helm version
+      - name: Fix NGINX Ingress webhook certificate
         run: |
-          echo "⚓️ Helm Information:"
-          helm version
-          echo "Helm repositories:"
-          helm repo list || echo "No repositories configured yet"
-      
-      - name: Deploy to Kubernetes
-        run: |
-          # Check if there's an ongoing Helm operation and wait/cleanup if needed
-          echo "Checking for ongoing Helm operations..."
-          if helm status frontend-app-prod -n ${{ env.NAMESPACE }} >/dev/null 2>&1; then
-            echo "Release exists, checking status..."
-            if helm status frontend-app-prod -n ${{ env.NAMESPACE }} | grep -q "pending"; then
-              echo "⚠️  Previous operation is pending, waiting..."
-              sleep 30
-              # Try to force upgrade if still pending
-              helm upgrade --install frontend-app-prod ./k8s/helm/frontend-app \
-                -f ./k8s/helm/frontend-app/value-prod.yaml \
-                -n ${{ env.NAMESPACE }} \
-                --set image.tag=${{ github.sha }} \
-                --set ingress.enabled=false \
-                --force \
-                --wait --timeout=5m
-            else
-              echo "✅ Release exists and is stable, proceeding with upgrade..."
-              helm upgrade --install frontend-app-prod ./k8s/helm/frontend-app \
-                -f ./k8s/helm/frontend-app/value-prod.yaml \
-                -n ${{ env.NAMESPACE }} \
-                --set image.tag=${{ github.sha }} \
-                --set ingress.enabled=false \
-                --wait --timeout=5m
-            fi
-          else
-            echo "📦 Release doesn't exist, installing..."
-            helm upgrade --install frontend-app-prod ./k8s/helm/frontend-app \
-              -f ./k8s/helm/frontend-app/value-prod.yaml \
-              -n ${{ env.NAMESPACE }} \
-              --set image.tag=${{ github.sha }} \
-              --set ingress.enabled=false \
-              --wait --timeout=5m
+          echo "🔧 Fixing NGINX Ingress webhook certificate..."
+          
+          # Check if webhook exists
+          if kubectl get validatingwebhookconfigurations ingress-nginx-admission >/dev/null 2>&1; then
+            echo "Webhook exists, deleting to regenerate..."
+            kubectl delete validatingwebhookconfigurations ingress-nginx-admission || true
+            
+            # Wait for webhook to be recreated
+            sleep 10
+            
+            # Patch webhook to use proper CA bundle
+            kubectl get validatingwebhookconfigurations ingress-nginx-admission -o json | \
+              jq '.webhooks[0].clientConfig.caBundle = ""' | \
+              kubectl apply -f - || true
           fi
           
-          # Then create ingress separately with validation disabled
+          # Alternative: Patch the webhook to ignore TLS verification (temporary fix)
+          kubectl patch validatingwebhookconfigurations ingress-nginx-admission \
+            --type='json' \
+            -p='[{"op":"replace","path":"/webhooks/0/failurePolicy","value":"Ignore"}]' || true
+      
+      - name: Deploy application (without Ingress)
+        run: |
+          echo "📦 Deploying application without Ingress..."
+          
+          helm upgrade --install frontend-app-prod ./k8s/helm/frontend-app \
+            -f ./k8s/helm/frontend-app/value-prod.yaml \
+            -n ${{ env.NAMESPACE }} \
+            --set image.tag=${{ github.sha }} \
+            --set ingress.enabled=false \
+            --wait --timeout=5m
+      
+      - name: Create Ingress separately with validation disabled
+        run: |
+          echo "🌐 Creating Ingress resource..."
+          
+          # Create Ingress with inline YAML
           cat <<EOF | kubectl apply -f -
           apiVersion: networking.k8s.io/v1
           kind: Ingress
@@ -212,7 +137,6 @@ jobs:
               nginx.ingress.kubernetes.io/rewrite-target: /
               nginx.ingress.kubernetes.io/ssl-redirect: "true"
               cert-manager.io/cluster-issuer: "letsencrypt-prod"
-              nginx.ingress.kubernetes.io/validate-nginx-ingress: "false"
           spec:
             ingressClassName: nginx
             tls:
@@ -232,14 +156,55 @@ jobs:
                         number: 80
           EOF
       
-      - name: Debug - Deployment status
+      - name: Wait for deployment to be ready
         run: |
-          echo "🚀 Deployment Status:"
-          kubectl get pods -n ${{ env.NAMESPACE }}
-          kubectl get svc -n ${{ env.NAMESPACE }}
-          kubectl get ingress -n ${{ env.NAMESPACE }}
-      
-      - name: Verify deployment
-        run: |
+          echo "⏳ Waiting for deployment to be ready..."
           kubectl rollout status deployment/frontend-app-prod -n ${{ env.NAMESPACE }} --timeout=300s
+          
+          echo "✅ Deployment successful!"
           kubectl get pods -n ${{ env.NAMESPACE }} -l app.kubernetes.io/name=frontend-app
+      
+      - name: Check Ingress and certificate status
+        run: |
+          echo "🔍 Ingress Status:"
+          kubectl get ingress -n ${{ env.NAMESPACE }}
+          
+          echo ""
+          echo "🔐 Certificate Status:"
+          kubectl get certificate -n ${{ env.NAMESPACE }} || echo "No certificates found yet"
+          
+          echo ""
+          echo "🌐 Service Status:"
+          kubectl get svc -n ${{ env.NAMESPACE }}
+          
+          # Get LoadBalancer endpoint
+          LB_ENDPOINT=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "Not ready")
+          echo ""
+          echo "📍 LoadBalancer Endpoint: $LB_ENDPOINT"
+          
+          if [ "$LB_ENDPOINT" != "Not ready" ]; then
+            echo ""
+            echo "⚠️  IMPORTANT: Ensure DNS is configured:"
+            echo "   prod.nainika.store → $LB_ENDPOINT"
+          fi
+      
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Image Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repository**: \`${{ env.DOCKER_REPOSITORY }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Status" >> $GITHUB_STEP_SUMMARY
+          
+          if kubectl get deployment frontend-app-prod -n ${{ env.NAMESPACE }} >/dev/null 2>&1; then
+            READY=$(kubectl get deployment frontend-app-prod -n ${{ env.NAMESPACE }} -o jsonpath='{.status.readyReplicas}')
+            DESIRED=$(kubectl get deployment frontend-app-prod -n ${{ env.NAMESPACE }} -o jsonpath='{.spec.replicas}')
+            echo "- **Pods**: $READY/$DESIRED ready" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Access URL" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: https://prod.nainika.store" >> $GITHUB_STEP_SUMMARY

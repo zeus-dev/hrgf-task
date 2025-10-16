@@ -126,7 +126,7 @@ jobs:
           aws eks associate-access-policy \
             --cluster-name ${{ steps.cluster.outputs.cluster_name }} \
             --principal-arn ${{ steps.iam_identity.outputs.current_arn }} \
-            --policy_arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
+            --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
             --access-scope type=cluster \
             --region ${{ env.AWS_REGION }} || true
       

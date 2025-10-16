@@ -105,6 +105,31 @@ jobs:
         run: |
           echo "cluster_name=$(terraform output -raw cluster_name)" >> $GITHUB_OUTPUT
       
+      - name: Get current IAM identity
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        id: iam_identity
+        run: |
+          CURRENT_ARN=$(aws sts get-caller-identity --query Arn --output text)
+          echo "current_arn=$CURRENT_ARN" >> $GITHUB_OUTPUT
+      
+      - name: Add pipeline IAM role to EKS access
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        run: |
+          # Create access entry for the pipeline IAM role
+          aws eks create-access-entry \
+            --cluster-name ${{ steps.cluster.outputs.cluster_name }} \
+            --principal-arn ${{ steps.iam_identity.outputs.current_arn }} \
+            --type STANDARD \
+            --region ${{ env.AWS_REGION }} || true
+          
+          # Associate admin policy with the access entry
+          aws eks associate-access-policy \
+            --cluster-name ${{ steps.cluster.outputs.cluster_name }} \
+            --principal-arn ${{ steps.iam_identity.outputs.current_arn }} \
+            --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
+            --access-scope type=cluster \
+            --region ${{ env.AWS_REGION }} || true
+      
       - name: Update kubeconfig
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |

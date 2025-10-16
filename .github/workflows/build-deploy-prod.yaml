@@ -167,13 +167,39 @@ jobs:
       
       - name: Deploy to Kubernetes
         run: |
-          # First deploy without ingress to avoid webhook validation issues
-          helm upgrade --install frontend-app-prod ./k8s/helm/frontend-app \
-            -f ./k8s/helm/frontend-app/value-prod.yaml \
-            -n ${{ env.NAMESPACE }} \
-            --set image.tag=${{ github.sha }} \
-            --set ingress.enabled=false \
-            --wait --timeout=5m
+          # Check if there's an ongoing Helm operation and wait/cleanup if needed
+          echo "Checking for ongoing Helm operations..."
+          if helm status frontend-app-prod -n ${{ env.NAMESPACE }} >/dev/null 2>&1; then
+            echo "Release exists, checking status..."
+            if helm status frontend-app-prod -n ${{ env.NAMESPACE }} | grep -q "pending"; then
+              echo "⚠️  Previous operation is pending, waiting..."
+              sleep 30
+              # Try to force upgrade if still pending
+              helm upgrade --install frontend-app-prod ./k8s/helm/frontend-app \
+                -f ./k8s/helm/frontend-app/value-prod.yaml \
+                -n ${{ env.NAMESPACE }} \
+                --set image.tag=${{ github.sha }} \
+                --set ingress.enabled=false \
+                --force \
+                --wait --timeout=5m
+            else
+              echo "✅ Release exists and is stable, proceeding with upgrade..."
+              helm upgrade --install frontend-app-prod ./k8s/helm/frontend-app \
+                -f ./k8s/helm/frontend-app/value-prod.yaml \
+                -n ${{ env.NAMESPACE }} \
+                --set image.tag=${{ github.sha }} \
+                --set ingress.enabled=false \
+                --wait --timeout=5m
+            fi
+          else
+            echo "📦 Release doesn't exist, installing..."
+            helm upgrade --install frontend-app-prod ./k8s/helm/frontend-app \
+              -f ./k8s/helm/frontend-app/value-prod.yaml \
+              -n ${{ env.NAMESPACE }} \
+              --set image.tag=${{ github.sha }} \
+              --set ingress.enabled=false \
+              --wait --timeout=5m
+          fi
           
           # Then create ingress separately with validation disabled
           cat <<EOF | kubectl apply -f -

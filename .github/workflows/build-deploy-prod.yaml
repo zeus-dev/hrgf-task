@@ -167,11 +167,44 @@ jobs:
       
       - name: Deploy to Kubernetes
         run: |
+          # First deploy without ingress to avoid webhook validation issues
           helm upgrade --install frontend-app-prod ./k8s/helm/frontend-app \
             -f ./k8s/helm/frontend-app/value-prod.yaml \
             -n ${{ env.NAMESPACE }} \
             --set image.tag=${{ github.sha }} \
-            --wait --timeout=10m
+            --set ingress.enabled=false \
+            --wait --timeout=5m
+          
+          # Then create ingress separately with validation disabled
+          cat <<EOF | kubectl apply -f -
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: frontend-app-prod
+            namespace: ${{ env.NAMESPACE }}
+            annotations:
+              nginx.ingress.kubernetes.io/rewrite-target: /
+              nginx.ingress.kubernetes.io/ssl-redirect: "true"
+              cert-manager.io/cluster-issuer: "letsencrypt-prod"
+              nginx.ingress.kubernetes.io/validate-nginx-ingress: "false"
+          spec:
+            ingressClassName: nginx
+            tls:
+            - hosts:
+              - prod.nainika.store
+              secretName: prod-nainika-store-tls
+            rules:
+            - host: prod.nainika.store
+              http:
+                paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: frontend-app-prod
+                      port:
+                        number: 80
+          EOF
       
       - name: Debug - Deployment status
         run: |

@@ -308,7 +308,7 @@ jobs:
             --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"=nlb \
             --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-cross-zone-load-balancing-enabled"=true \
             --set controller.metrics.enabled=true \
-            --set controller.metrics.serviceMonitor.enabled=true \
+            --set controller.metrics.serviceMonitor.enabled=false \
             --set controller.podAnnotations."prometheus\.io/scrape"=true \
             --set controller.podAnnotations."prometheus\.io/port"=10254 \
             --wait --timeout=300s
@@ -381,6 +381,9 @@ jobs:
             --wait --timeout=600s
           
           echo "Monitoring stack installed successfully"
+          
+          # Create ServiceMonitor for NGINX Ingress Controller
+          kubectl apply -f ../k8s/monitoring/ingress-nginx-servicemonitor.yaml
       
       - name: Deployment Summary
         run: |

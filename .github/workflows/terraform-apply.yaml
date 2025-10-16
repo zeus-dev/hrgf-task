@@ -12,10 +12,25 @@ on:
     paths:
       - 'terraform/**'
   workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
+      debug:
+        description: 'Enable debug logging'
+        required: false
+        default: false
+        type: boolean
 
 env:
   AWS_REGION: ap-south-1
   TF_VERSION: 1.6.0
+  TF_LOG: ${{ inputs.debug && 'DEBUG' || 'INFO' }}
 
 jobs:
   terraform:
@@ -105,11 +120,15 @@ jobs:
         run: exit 1
       
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
         run: terraform apply -auto-approve -input=false
       
+      - name: Terraform Destroy
+        if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy'
+        run: terraform destroy -auto-approve
+      
       - name: Get EKS cluster name
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
         id: cluster
         run: |
           # Using hardcoded cluster name since infrastructure already exists

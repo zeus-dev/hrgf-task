@@ -1,7 +1,7 @@
-# EKS Cluster (commented out as it already exists)
-# module "eks" {
-#   source  = "terraform-aws-modules/eks/aws"
-#   version = "~> 20.31.0"
+# EKS Cluster
+module "eks" {
+  source  = "terraform-aws-modules/eks/aws"
+  version = "~> 20.31.0"
 
 #   cluster_name    = var.cluster_name
 #   cluster_version = var.cluster_version
@@ -124,8 +124,8 @@
 #   tags = var.tags
 # }
 
-# AWS Load Balancer Controller IAM Policy (commented out as it already exists)
-# resource "aws_iam_policy" "aws_load_balancer_controller" {
+# AWS Load Balancer Controller IAM Policy
+resource "aws_iam_policy" "aws_load_balancer_controller" {
 #   name        = "${var.cluster_name}-aws-load-balancer-controller"
 #   description = "IAM policy for AWS Load Balancer Controller"
 

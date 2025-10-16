@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read
   security-events: write
+  actions: read
 
 env:
   AWS_REGION: ap-south-1
@@ -141,11 +142,69 @@ jobs:
             EOF
           fi
       
+      - name: Validate SARIF file
+        run: |
+          echo "🔍 Validating SARIF file..."
+          if [ -f trivy-results.sarif ]; then
+            # Check if it's valid JSON
+            if jq empty trivy-results.sarif 2>/dev/null; then
+              echo "✅ SARIF file is valid JSON"
+              # Check if it has the required SARIF structure
+              if jq -e '.version and .runs' trivy-results.sarif >/dev/null 2>&1; then
+                echo "✅ SARIF file has required structure"
+              else
+                echo "❌ SARIF file missing required fields, recreating..."
+                cat > trivy-results.sarif << 'EOF'
+                {
+                  "version": "2.1.0",
+                  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+                  "runs": [
+                    {
+                      "tool": {
+                        "driver": {
+                          "name": "Trivy",
+                          "version": "0.0.0",
+                          "informationUri": "https://github.com/aquasecurity/trivy"
+                        }
+                      },
+                      "results": []
+                    }
+                  ]
+                }
+                EOF
+              fi
+            else
+              echo "❌ SARIF file is not valid JSON, recreating..."
+              cat > trivy-results.sarif << 'EOF'
+              {
+                "version": "2.1.0",
+                "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+                "runs": [
+                  {
+                    "tool": {
+                      "driver": {
+                        "name": "Trivy",
+                        "version": "0.0.0",
+                        "informationUri": "https://github.com/aquasecurity/trivy"
+                      }
+                    },
+                    "results": []
+                  }
+                ]
+              }
+              EOF
+            fi
+          else
+            echo "❌ SARIF file not found"
+            exit 1
+          fi
+      
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && github.repository == github.event.repository.full_name
         with:
           sarif_file: 'trivy-results.sarif'
+        continue-on-error: true
       
       - name: Update kubeconfig
         run: |

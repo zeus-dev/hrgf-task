@@ -111,16 +111,110 @@ jobs:
             --type='json' \
             -p='[{"op":"replace","path":"/webhooks/0/failurePolicy","value":"Ignore"}]' || true
       
+      - name: Pre-deployment checks
+        run: |
+          echo "🔍 Pre-deployment checks..."
+          
+          # Check if namespace exists
+          kubectl get namespace ${{ env.NAMESPACE }} || kubectl create namespace ${{ env.NAMESPACE }}
+          
+          # Create/update Docker registry secret for pulling images
+          kubectl create secret docker-registry regcred \
+            --docker-server=https://index.docker.io/v1/ \
+            --docker-username=${{ secrets.DOCKER_HUB_USERNAME }} \
+            --docker-password=${{ secrets.DOCKER_HUB_ACCESS_TOKEN }} \
+            --docker-email=${{ secrets.DOCKER_HUB_EMAIL }} \
+            -n ${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          # Check cluster resources
+          echo ""
+          echo "📊 Cluster Resources:"
+          kubectl top nodes || echo "Metrics not available"
+          
+          echo ""
+          echo "🏃 Current pods in namespace:"
+          kubectl get pods -n ${{ env.NAMESPACE }} || echo "No pods yet"
+      
       - name: Deploy application (without Ingress)
         run: |
           echo "📦 Deploying application without Ingress..."
           
+          # Deploy without waiting first to see if it's a timeout or real failure
           helm upgrade --install frontend-app-prod ./k8s/helm/frontend-app \
             -f ./k8s/helm/frontend-app/value-prod.yaml \
             -n ${{ env.NAMESPACE }} \
             --set image.tag=${{ github.sha }} \
             --set ingress.enabled=false \
-            --wait --timeout=5m
+            --timeout=10m \
+            --atomic=false \
+            --debug
+          
+          echo ""
+          echo "✅ Helm release created/updated"
+          
+          # Now wait for deployment manually with better feedback
+          echo ""
+          echo "⏳ Waiting for deployment to be ready..."
+          
+          for i in {1..60}; do
+            READY=$(kubectl get deployment frontend-app-prod -n ${{ env.NAMESPACE }} -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+            DESIRED=$(kubectl get deployment frontend-app-prod -n ${{ env.NAMESPACE }} -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+            
+            echo "Attempt $i/60: Ready: $READY/$DESIRED"
+            
+            if [ "$READY" = "$DESIRED" ] && [ "$READY" != "0" ]; then
+              echo "✅ Deployment is ready!"
+              break
+            fi
+            
+            if [ $i -eq 60 ]; then
+              echo "❌ Timeout waiting for deployment"
+              kubectl get pods -n ${{ env.NAMESPACE }}
+              exit 1
+            fi
+            
+            sleep 5
+          done
+      
+      - name: Debug deployment issues
+        if: failure()
+        run: |
+          echo "❌ Deployment failed, gathering debug info..."
+          
+          echo ""
+          echo "📦 Helm Release Status:"
+          helm status frontend-app-prod -n ${{ env.NAMESPACE }} || true
+          
+          echo ""
+          echo "🏃 Pod Status:"
+          kubectl get pods -n ${{ env.NAMESPACE }} -o wide
+          
+          echo ""
+          echo "📋 Pod Details:"
+          kubectl describe pods -n ${{ env.NAMESPACE }} -l app.kubernetes.io/name=frontend-app
+          
+          echo ""
+          echo "📝 Pod Logs:"
+          for pod in $(kubectl get pods -n ${{ env.NAMESPACE }} -l app.kubernetes.io/name=frontend-app -o jsonpath='{.items[*].metadata.name}'); do
+            echo "=== Logs for $pod ==="
+            kubectl logs $pod -n ${{ env.NAMESPACE }} --tail=50 || true
+            echo ""
+          done
+          
+          echo ""
+          echo "🔍 Events:"
+          kubectl get events -n ${{ env.NAMESPACE }} --sort-by='.lastTimestamp' | tail -20
+          
+          echo ""
+          echo "📊 ReplicaSets:"
+          kubectl get rs -n ${{ env.NAMESPACE }} -l app.kubernetes.io/name=frontend-app
+          
+          echo ""
+          echo "🎯 Deployment Status:"
+          kubectl get deployment frontend-app-prod -n ${{ env.NAMESPACE }} -o yaml || true
+          
+          exit 1
       
       - name: Create Ingress separately with validation disabled
         run: |

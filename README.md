@@ -109,17 +109,24 @@ graph TB
 │   ├── eks.tf              # EKS cluster configuration
 │   ├── variables.tf        # Input variables
 │   ├── outputs.tf          # Output values
-│   └── terraform.tfvars    # Environment-specific values
+│   └── backend.tf          # Terraform backend configuration
 ├── k8s/                    # Kubernetes configurations
 │   ├── helm/frontend-app/  # Helm chart for application
 │   ├── namespaces/         # Namespace definitions
 │   ├── ingress/            # Ingress configurations
 │   ├── monitoring/         # Prometheus & Grafana setup
 │   └── tls/                # TLS certificate configurations
-└── .github/workflows/      # CI/CD pipelines
-    ├── terraform-apply.yaml
-    ├── build-deploy-prod.yaml
-    └── build-deploy-stage.yaml
+├── .github/workflows/      # CI/CD pipelines
+│   ├── terraform-apply.yaml
+│   ├── build-deploy-prod.yaml
+│   └── build-deploy-stage.yaml
+├── scripts/                # Automation scripts
+│   ├── setup-backend.sh           # Backend setup
+│   ├── setup-infrastructure.sh    # Full infrastructure setup
+│   └── cleanup-infrastructure.sh  # Cleanup script
+└── docs/                   # Documentation
+    ├── DEPLOYMENT.md       # Detailed deployment guide
+    └── BEST_PRACTICES.md   # DevOps best practices
 ```
 
 ## 🚀 Getting Started
@@ -132,6 +139,19 @@ graph TB
 - Helm 3.x installed
 - Terraform >= 1.0
 - GitHub account with repository secrets configured
+
+### Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/zeus-dev/hrgf-task.git
+cd hrgf-task
+
+# Run automated setup (recommended)
+./scripts/setup-infrastructure.sh
+
+# Or follow the manual setup guide in docs/DEPLOYMENT.md
+```
 
 ### Required GitHub Secrets
 
@@ -150,28 +170,31 @@ CLOUDFLARE_API_TOKEN
 
 ### 1. Infrastructure Setup
 
+#### Automated Setup (Recommended)
+
 ```bash
 # Clone the repository
 git clone https://github.com/zeus-dev/hrgf-task.git
 cd hrgf-task
 
-# Setup Terraform backend (one-time setup)
-cd terraform
-aws s3api create-bucket --bucket nainika-terraform-state --region ap-south-1 \
-  --create-bucket-configuration LocationConstraint=ap-south-1
-aws s3api put-bucket-versioning --bucket nainika-terraform-state \
-  --versioning-configuration Status=Enabled
-aws dynamodb create-table --table-name terraform-state-lock \
-  --attribute-definitions AttributeName=LockID,AttributeType=S \
-  --key-schema AttributeName=LockID,KeyType=HASH \
-  --billing-mode PAY_PER_REQUEST --region ap-south-1
+# Run the automated setup script
+./scripts/setup-infrastructure.sh
+```
 
-# Uncomment the backend configuration in backend.tf
-# Then initialize and apply Terraform
+#### Manual Setup
+
+```bash
+# Setup Terraform backend (one-time setup)
+./scripts/setup-backend.sh
+
+# Initialize and apply Terraform
+cd terraform
 terraform init
 terraform plan
 terraform apply
 ```
+
+For detailed instructions, see [Deployment Guide](docs/DEPLOYMENT.md).
 
 ### 2. Configure kubectl
 
@@ -364,6 +387,27 @@ kubectl top pods -A
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+See [Best Practices Guide](docs/BEST_PRACTICES.md) for development guidelines.
+
+## 📚 Documentation
+
+- [Deployment Guide](docs/DEPLOYMENT.md) - Detailed setup and deployment instructions
+- [Best Practices](docs/BEST_PRACTICES.md) - DevOps and IaC best practices
+- [Monitoring Guide](k8s/monitoring/README.md) - Prometheus and Grafana configuration
+
+## 🧹 Cleanup
+
+To destroy all infrastructure:
+
+```bash
+# Automated cleanup (recommended)
+./scripts/cleanup-infrastructure.sh
+
+# Or manual cleanup
+cd terraform
+terraform destroy
+```
 
 ## 📜 License
 

@@ -1,15 +1,18 @@
-# Uncomment after creating S3 bucket and DynamoDB table for state locking
-# terraform {
-#   backend "s3" {
-#     bucket         = "nainika-terraform-state"
-#     key            = "eks/terraform.tfstate"
-#     region         = "us-east-1"
-#     encrypt        = true
-#     dynamodb_table = "terraform-state-lock"
-#   }
-# }
+# Terraform Backend Configuration
+# 
+# ⚠️  IMPORTANT: Before uncommenting this block:
+# 1. Run: ./scripts/setup-backend.sh
+# 2. Ensure the S3 bucket and DynamoDB table are created
+# 3. Update the region if different from ap-south-1
+# 
+# After uncommenting, run: terraform init -migrate-state
 
-# Initial setup (run these AWS CLI commands first):
-# aws s3api create-bucket --bucket nainika-terraform-state --region ap-south-1
-# aws s3api put-bucket-versioning --bucket nainika-terraform-state --versioning-configuration Status=Enabled
-# aws dynamodb create-table --table-name terraform-state-lock --attribute-definitions AttributeName=LockID,AttributeType=S --key-schema AttributeName=LockID,KeyType=HASH --billing-mode PAY_PER_REQUEST --region ap-south-1
+terraform {
+  backend "s3" {
+    bucket         = "nainika-terraform-state"
+    key            = "eks/terraform.tfstate"
+    region         = "ap-south-1"
+    encrypt        = true
+    dynamodb_table = "terraform-state-lock"
+  }
+}

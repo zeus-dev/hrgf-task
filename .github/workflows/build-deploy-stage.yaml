@@ -1,181 +1,90 @@
-# name: Build and Deploy - Stage
+name: Build and Deploy - Staging
 
-# on:
-#   push:
-#     branches:
-#       - develop
-#     paths:
-#       - 'frontend/**'
-#       - 'k8s/helm/**'
-#   workflow_dispatch:
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'frontend/**'
+      - 'k8s/helm/**'
+  workflow_dispatch:
 
-# env:
-#   AWS_REGION: ap-south-1
-#   DOCKER_REPOSITORY: zeusdev27/myhello-app
-#   EKS_CLUSTER_NAME: nasa-eks
-#   NAMESPACE: stage
-#   ENVIRONMENT: stage
+env:
+  AWS_REGION: ap-south-1
+  DOCKER_REPOSITORY: zeusdev27/myhello-app
+  EKS_CLUSTER_NAME: nasa-eks
+  NAMESPACE: stage
+  ENVIRONMENT: staging
 
-# jobs:
-#   build-and-deploy:
-#     name: Build and Deploy to Stage
-#     runs-on: ubuntu-latest
-    
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v4
+jobs:
+  build-and-deploy:
+    name: Build and Deploy to Staging
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://stage.nainika.store
+   
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       
-#       - name: Configure AWS credentials
-#         uses: aws-actions/configure-aws-credentials@v4
-#         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           aws-region: ${{ env.AWS_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
       
-#       - name: Login to Docker Hub
-#         uses: docker/login-action@v3
-#         with:
-#           username: ${{ secrets.DOCKER_HUB_USERNAME }}
-#           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
       
-#       - name: Set up Docker Buildx
-#         uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       
-#       - name: Build and push Docker image
-#         uses: docker/build-push-action@v5
-#         with:
-#           context: ./frontend
-#           file: ./frontend/Dockerfile
-#           push: true
-#           tags: |
-#             ${{ env.DOCKER_REPOSITORY }}:staging
-#             ${{ env.DOCKER_REPOSITORY }}:staging-${{ github.sha }}
-#           cache-from: type=gha
-#           cache-to: type=gha,mode=max
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_REPOSITORY }}:staging
+            ${{ env.DOCKER_REPOSITORY }}:staging-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       
-#       - name: Update kubeconfig
-#         run: |
-#           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
       
-#       - name: Install Helm
-#         uses: azure/setup-helm@v3
-#         with:
-#           version: '3.12.0'
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.12.0'
       
-#       - name: Deploy to Stage with Helm
-#         run: |
-#           helm upgrade --install frontend-app-stage ./k8s/helm/frontend-app \
-#             --namespace ${{ env.NAMESPACE }} \
-#             --create-namespace \
-#             -f ./k8s/helm/frontend-app/value-stage.yaml \
-#             --set image.tag=staging-${{ github.sha }} \
-#             --wait \
-#             --timeout 10m
+      - name: Deploy to Staging with Helm
+        run: |
+          helm upgrade --install frontend-app-stage ./k8s/helm/frontend-app \
+            --namespace ${{ env.NAMESPACE }} \
+            --create-namespace \
+            -f ./k8s/helm/frontend-app/value-stage.yaml \
+            --set image.tag=staging-${{ github.sha }} \
+            --wait \
+            --timeout 10m
       
-#       - name: Verify Deployment
-#         run: |
-#           kubectl rollout status deployment/frontend-app-stage -n ${{ env.NAMESPACE }} --timeout=300s
-#           kubectl get pods -n ${{ env.NAMESPACE }} -l app.kubernetes.io/name=frontend-app
-#           kubectl get svc -n ${{ env.NAMESPACE }}
-#           kubectl get ingress -n ${{ env.NAMESPACE }}
+      - name: Verify Deployment
+        run: |
+          kubectl rollout status deployment/frontend-app-stage -n ${{ env.NAMESPACE }} --timeout=300s
+          kubectl get pods -n ${{ env.NAMESPACE }} -l app.kubernetes.io/name=frontend-app
+          kubectl get svc -n ${{ env.NAMESPACE }}
+          kubectl get ingress -n ${{ env.NAMESPACE }}
       
-#       - name: Run Health Check
-#         run: |
-#           # Wait for deployment to be ready
-#           sleep 30
-#           # Check if the service is accessible (you may need to adjust this based on your setup)
-#           kubectl get endpoints -n ${{ env.NAMESPACE }}
-#         run: |
-#           echo "Waiting for pods to be ready..."
-#           kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=frontend-app -n ${{ env.NAMESPACE }} --timeout=300s
-#           echo "Deployment successful!"# name: Build and Deploy - Stage
+      - name: Run Health Check
+        run: |
+          echo "Waiting for pods to be ready..."
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=frontend-app -n ${{ env.NAMESPACE }} --timeout=300s
+          echo "Staging deployment successful!"
 
-# on:
-#   push:
-#     branches:
-#       - develop
-#     paths:
-#       - 'frontend/**'
-#       - 'k8s/helm/**'
-#   workflow_dispatch:
-
-# env:
-#   AWS_REGION: ap-south-1
-#   DOCKER_REPOSITORY: zeusdev27/myhello-app
-#   EKS_CLUSTER_NAME: nasa-eks
-#   NAMESPACE: stage
-#   ENVIRONMENT: stage
-
-# jobs:
-#   build-and-deploy:
-#     name: Build and Deploy to Stage
-#     runs-on: ubuntu-latest
-    
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v4
-      
-#       - name: Configure AWS credentials
-#         uses: aws-actions/configure-aws-credentials@v4
-#         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           aws-region: ${{ env.AWS_REGION }}
-      
-#       - name: Login to Docker Hub
-#         uses: docker/login-action@v3
-#         with:
-#           username: ${{ secrets.DOCKER_HUB_USERNAME }}
-#           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-      
-#       - name: Set up Docker Buildx
-#         uses: docker/setup-buildx-action@v3
-      
-#       - name: Build and push Docker image
-#         uses: docker/build-push-action@v5
-#         with:
-#           context: ./frontend
-#           file: ./frontend/Dockerfile
-#           push: true
-#           tags: |
-#             ${{ env.DOCKER_REPOSITORY }}:staging
-#             ${{ env.DOCKER_REPOSITORY }}:staging-${{ github.sha }}
-#           cache-from: type=gha
-#           cache-to: type=gha,mode=max
-      
-#       - name: Update kubeconfig
-#         run: |
-#           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
-      
-#       - name: Install Helm
-#         uses: azure/setup-helm@v3
-#         with:
-#           version: '3.12.0'
-      
-#       - name: Deploy to Stage with Helm
-#         run: |
-#           helm upgrade --install frontend-app-stage ./k8s/helm/frontend-app \
-#             --namespace ${{ env.NAMESPACE }} \
-#             --create-namespace \
-#             -f ./k8s/helm/frontend-app/value-stage.yaml \
-#             --set image.tag=staging-${{ github.sha }} \
-#             --wait \
-#             --timeout 10m
-      
-#       - name: Verify Deployment
-#         run: |
-#           kubectl rollout status deployment/frontend-app-stage -n ${{ env.NAMESPACE }} --timeout=300s
-#           kubectl get pods -n ${{ env.NAMESPACE }} -l app.kubernetes.io/name=frontend-app
-#           kubectl get svc -n ${{ env.NAMESPACE }}
-#           kubectl get ingress -n ${{ env.NAMESPACE }}
-      
-#       - name: Run Health Check
-#         run: |
-#           # Wait for deployment to be ready
-#           sleep 30
-#           # Check if the service is accessible (you may need to adjust this based on your setup)
-#           kubectl get endpoints -n ${{ env.NAMESPACE }}
-#         run: |
-#           echo "Waiting for pods to be ready..."
-#           kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=frontend-app -n ${{ env.NAMESPACE }} --timeout=300s
-#           echo "Deployment successful!"

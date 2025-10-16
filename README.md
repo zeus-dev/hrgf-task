@@ -201,6 +201,9 @@ helm repo add prometheus-community https://prometheus-community.github.io/helm-c
 helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
   -f k8s/monitoring/prometheus-values.yaml \
   -n monitoring --create-namespace
+
+# Or use the automated deployment script
+./deploy-monitoring.sh
 ```
 
 ### 4. Deploy Application
@@ -229,13 +232,15 @@ The project includes three automated workflows:
 
 ### 2. Production Deployment (`build-deploy-prod.yaml`)
 - **Trigger**: Push to `main` branch with frontend changes
-- **Actions**: Build → Test → Push to Docker Hub → Deploy to production
+- **Actions**: Build → Security Scan → Push to Docker Hub → Deploy to production
 - **Environment**: Production namespace
+- **Security**: Trivy vulnerability scanning with results uploaded to GitHub Security tab
 
 ### 3. Staging Deployment (`build-deploy-stage.yaml`)
 - **Trigger**: Push to `develop` branch with frontend changes
-- **Actions**: Build → Test → Push to Docker Hub → Deploy to staging
+- **Actions**: Build → Security Scan → Push to Docker Hub → Deploy to staging
 - **Environment**: Staging namespace
+- **Security**: Trivy vulnerability scanning with results uploaded to GitHub Security tab
 
 ## 📊 Monitoring & Observability
 
@@ -275,6 +280,7 @@ kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
 ## 🔒 Security Features
 
 - **Container Security**: Non-root containers, read-only root filesystem
+- **Vulnerability Scanning**: Trivy integration in CI/CD pipelines for container image security
 - **Network Security**: NGINX Ingress with proper security headers
 - **TLS Encryption**: Cloudflare-managed SSL/TLS certificates
 - **RBAC**: Kubernetes role-based access control

@@ -16,7 +16,7 @@ permissions:
 
 env:
   AWS_REGION: ap-south-1
-  DOCKER_REPOSITORY: zeusdev27/myhello-app
+  DOCKER_REPOSITORY: zeusdev27/myhello
   EKS_CLUSTER_NAME: nasa-eks
   NAMESPACE: prod
   ENVIRONMENT: production

@@ -159,7 +159,8 @@ jobs:
         run: |
           echo "⚓️ Helm Information:"
           helm version
-          helm repo list
+          echo "Helm repositories:"
+          helm repo list || echo "No repositories configured yet"
       
       - name: Deploy to Stage with Helm
         run: |

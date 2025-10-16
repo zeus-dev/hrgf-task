@@ -1,7 +1,7 @@
-Data source to get current AWS account ID
+# Data source to get current AWS account ID
 data "aws_caller_identity" "current" {}
 
-EBS CSI Driver IAM Role (commented out since EKS cluster already exists)
+# EBS CSI Driver IAM Role (commented out since EKS cluster already exists)
 module "ebs_csi_driver_irsa" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.0"
@@ -20,7 +20,7 @@ module "ebs_csi_driver_irsa" {
   tags = var.tags
 }
 
-EBS CSI Driver Addon (commented out since EKS cluster already exists)
+# EBS CSI Driver Addon (commented out since EKS cluster already exists)
 resource "aws_eks_addon" "ebs_csi_driver" {
   cluster_name             = module.eks.cluster_name
   addon_name               = "aws-ebs-csi-driver"

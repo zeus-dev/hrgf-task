@@ -327,13 +327,13 @@ jobs:
             --set controller.metrics.serviceMonitor.enabled=true \
             --set controller.podAnnotations."prometheus\.io/scrape"=true \
             --set controller.podAnnotations."prometheus\.io/port"=10254 \
-            --wait --timeout=300s
+            --wait --timeout=600s
           
           echo "Waiting for LoadBalancer provisioning..."
           kubectl wait --namespace ingress-nginx \
             --for=condition=ready pod \
             --selector=app.kubernetes.io/component=controller \
-            --timeout=300s
+            --timeout=600s
       
       - name: Configure TLS certificates
         run: |

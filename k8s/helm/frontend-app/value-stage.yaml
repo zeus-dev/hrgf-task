@@ -4,7 +4,7 @@ environment: staging
 replicaCount: 2
 
 image:
-  repository: zeusdev27/myhello-app
+  repository: zeusdev27/myhello
   tag: "staging"
 
 resources:

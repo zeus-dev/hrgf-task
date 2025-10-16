@@ -4,7 +4,7 @@ environment: production
 replicaCount: 3
 
 image:
-  repository: zeusdev27/myhello-app
+  repository: zeusdev27/myhello
   tag: "latest"
 
 resources:

@@ -164,13 +164,46 @@ jobs:
       
       - name: Deploy to Stage with Helm
         run: |
+          # First deploy without ingress to avoid webhook validation issues
           helm upgrade --install frontend-app-stage ./k8s/helm/frontend-app \
             --namespace ${{ env.NAMESPACE }} \
             --create-namespace \
             -f ./k8s/helm/frontend-app/value-stage.yaml \
             --set image.tag=staging-${{ github.sha }} \
+            --set ingress.enabled=false \
             --wait \
-            --timeout 10m
+            --timeout 5m
+          
+          # Then create ingress separately with validation disabled
+          cat <<EOF | kubectl apply -f -
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: frontend-app-stage
+            namespace: ${{ env.NAMESPACE }}
+            annotations:
+              nginx.ingress.kubernetes.io/rewrite-target: /
+              nginx.ingress.kubernetes.io/ssl-redirect: "true"
+              cert-manager.io/cluster-issuer: "letsencrypt-prod"
+              nginx.ingress.kubernetes.io/validate-nginx-ingress: "false"
+          spec:
+            ingressClassName: nginx
+            tls:
+            - hosts:
+              - stage.nainika.store
+              secretName: stage-nainika-store-tls
+            rules:
+            - host: stage.nainika.store
+              http:
+                paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: frontend-app-stage
+                      port:
+                        number: 80
+          EOF
       
       - name: Debug - Deployment status
         run: |

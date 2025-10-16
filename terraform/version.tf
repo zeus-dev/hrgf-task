@@ -21,15 +21,28 @@ provider "aws" {
   region = var.aws_region
 }
 
+# Note: Kubernetes and Helm providers are configured but not used in Terraform
+# Kubernetes resources are deployed via the CI/CD pipeline after cluster creation
 provider "kubernetes" {
-  host                   = module.eks.cluster_endpoint
-  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+  host                   = try(module.eks.cluster_endpoint, "")
+  cluster_ca_certificate = try(base64decode(module.eks.cluster_certificate_authority_data), "")
 
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
-    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+    args        = ["eks", "get-token", "--cluster-name", try(module.eks.cluster_name, "")]
   }
 }
 
-provider "helm" {}
+provider "helm" {
+  kubernetes {
+    host                   = try(module.eks.cluster_endpoint, "")
+    cluster_ca_certificate = try(base64decode(module.eks.cluster_certificate_authority_data), "")
+
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "aws"
+      args        = ["eks", "get-token", "--cluster-name", try(module.eks.cluster_name, "")]
+    }
+  }
+}

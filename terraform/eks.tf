@@ -1,127 +1,128 @@
-module "eks" {
-  source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.31.0"
+# EKS Cluster (commented out as it already exists)
+# module "eks" {
+#   source  = "terraform-aws-modules/eks/aws"
+#   version = "~> 20.31.0"
 
-  cluster_name    = var.cluster_name
-  cluster_version = var.cluster_version
+#   cluster_name    = var.cluster_name
+#   cluster_version = var.cluster_version
 
-  vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.private_subnets
+#   vpc_id     = module.vpc.vpc_id
+#   subnet_ids = module.vpc.private_subnets
 
-  # Cluster endpoint configuration
-  cluster_endpoint_public_access = true
+#   # Cluster endpoint configuration
+#   cluster_endpoint_public_access = true
 
-  # Disable creation of KMS key and CloudWatch log group (they already exist)
-  create_kms_key = false
-  create_cloudwatch_log_group = false
+#   # Disable creation of KMS key and CloudWatch log group (they already exist)
+#   create_kms_key = false
+#   create_cloudwatch_log_group = false
   
-  # Manage access entries for IAM users/roles
-  access_entries = {
-    cluster_creator = {
-      principal_arn = "arn:aws:iam::148450584786:user/bala"
-      policy_associations = {
-        admin = {
-          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-          access_scope = {
-            type = "cluster"
-          }
-        }
-      }
-    }
-    # Add your CI/CD pipeline IAM role here when available
-    # Example:
-    # pipeline_role = {
-    #   principal_arn = "arn:aws:iam::148450584786:role/your-pipeline-role"
-    #   policy_associations = {
-    #     admin = {
-    #       policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-    #       access_scope = {
-    #         type = "cluster"
-    #       }
-    #     }
-    #   }
-    # }
-  }
+#   # Manage access entries for IAM users/roles
+#   access_entries = {
+#     cluster_creator = {
+#       principal_arn = "arn:aws:iam::148450584786:user/bala"
+#       policy_associations = {
+#         admin = {
+#           policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+#           access_scope = {
+#             type = "cluster"
+#           }
+#         }
+#       }
+#     }
+#     # Add your CI/CD pipeline IAM role here when available
+#     # Example:
+#     # pipeline_role = {
+#     #   principal_arn = "arn:aws:iam::148450584786:role/your-pipeline-role"
+#     #   policy_associations = {
+#       #     admin = {
+#       #       policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+#       #       access_scope = {
+#       #         type = "cluster"
+#       #       }
+#       #     }
+#       #   }
+#     # }
+#   }
 
-  # EKS Managed Node Group
-  eks_managed_node_groups = {
-    main = {
-      name = "${var.cluster_name}-node-group"
+#   # EKS Managed Node Group
+#   eks_managed_node_groups = {
+#     main = {
+#       name = "${var.cluster_name}-node-group"
 
-      instance_types = var.instance_types
-      capacity_type  = "ON_DEMAND"
+#       instance_types = var.instance_types
+#       capacity_type  = "ON_DEMAND"
 
-      min_size     = var.min_size
-      max_size     = var.max_size
-      desired_size = var.desired_size
+#       min_size     = var.min_size
+#       max_size     = var.max_size
+#       desired_size = var.desired_size
 
-      # Disk size for nodes
-      disk_size = 20
+#       # Disk size for nodes
+#       disk_size = 20
 
-      # IAM role for nodes
-      iam_role_additional_policies = {
-        AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-      }
+#       # IAM role for nodes
+#       iam_role_additional_policies = {
+#         AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+#       }
 
-      labels = {
-        Environment = var.environment
-        NodeGroup   = "main"
-      }
+#       labels = {
+#         Environment = var.environment
+#         NodeGroup   = "main"
+#       }
 
-      tags = merge(
-        var.tags,
-        {
-          Name = "${var.cluster_name}-node-group"
-        }
-      )
-    }
-  }
+#       tags = merge(
+#         var.tags,
+#         {
+#           Name = "${var.cluster_name}-node-group"
+#         }
+#       )
+#     }
+#   }
 
-  # Cluster security group rules
-  cluster_security_group_additional_rules = {
-    ingress_nodes_ephemeral_ports_tcp = {
-      description                = "Nodes on ephemeral ports"
-      protocol                   = "tcp"
-      from_port                  = 1025
-      to_port                    = 65535
-      type                       = "ingress"
-      source_node_security_group = true
-    }
-  }
+#   # Cluster security group rules
+#   cluster_security_group_additional_rules = {
+#     ingress_nodes_ephemeral_ports_tcp = {
+#       description                = "Nodes on ephemeral ports"
+#       protocol                   = "tcp"
+#       from_port                  = 1025
+#       to_port                    = 65535
+#       type                       = "ingress"
+#       source_node_security_group = true
+#     }
+#   }
 
-  # Node security group rules
-  node_security_group_additional_rules = {
-    ingress_self_all = {
-      description = "Node to node all ports/protocols"
-      protocol    = "-1"
-      from_port   = 0
-      to_port     = 0
-      type        = "ingress"
-      self        = true
-    }
+#   # Node security group rules
+#   node_security_group_additional_rules = {
+#     ingress_self_all = {
+#       description = "Node to node all ports/protocols"
+#       protocol    = "-1"
+#       from_port   = 0
+#       to_port     = 0
+#       type        = "ingress"
+#       self        = true
+#     }
 
-    ingress_cluster_all = {
-      description                   = "Cluster to node all ports/protocols"
-      protocol                      = "-1"
-      from_port                     = 0
-      to_port                       = 0
-      type                          = "ingress"
-      source_cluster_security_group = true
-    }
+#     ingress_cluster_all = {
+#       description                   = "Cluster to node all ports/protocols"
+#       protocol                      = "-1"
+#       from_port                     = 0
+#       to_port                       = 0
+#       type                          = "ingress"
+#       source_cluster_security_group = true
+#     }
 
-    egress_all = {
-      description      = "Node all egress"
-      protocol         = "-1"
-      from_port        = 0
-      to_port          = 0
-      type             = "egress"
-      cidr_blocks      = ["0.0.0.0/0"]
-      ipv6_cidr_blocks = ["::/0"]
-    }
-  }
+#     egress_all = {
+#       description      = "Node all egress"
+#       protocol         = "-1"
+#       from_port        = 0
+#       to_port          = 0
+#       type             = "egress"
+#       cidr_blocks      = ["0.0.0.0/0"]
+#       ipv6_cidr_blocks = ["::/0"]
+#     }
+#   }
 
-  tags = var.tags
-}
+#   tags = var.tags
+# }
 
 # AWS Load Balancer Controller IAM Policy (commented out as it already exists)
 # resource "aws_iam_policy" "aws_load_balancer_controller" {

@@ -1,13 +1,12 @@
-# Uncomment after creating S3 bucket and DynamoDB table for state locking
-# terraform {
-#   backend "s3" {
-#     bucket         = "nainika-terraform-state"
-#     key            = "eks/terraform.tfstate"
-#     region         = "us-east-1"
-#     encrypt        = true
-#     dynamodb_table = "terraform-state-lock"
-#   }
-# }
+terraform {
+  backend "s3" {
+    bucket         = "nainika-terraform-state"
+    key            = "eks/terraform.tfstate"
+    region         = "ap-south-1"
+    encrypt        = true
+    dynamodb_table = "terraform-state-lock"
+  }
+}
 
 # Initial setup (run these AWS CLI commands first):
 # aws s3api create-bucket --bucket nainika-terraform-state --region ap-south-1

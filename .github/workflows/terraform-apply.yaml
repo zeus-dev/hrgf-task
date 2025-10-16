@@ -112,7 +112,8 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         id: cluster
         run: |
-          echo "cluster_name=$(terraform output -raw cluster_name)" >> $GITHUB_OUTPUT
+          # Using hardcoded cluster name since infrastructure already exists
+          echo "cluster_name=nasa-eks" >> $GITHUB_OUTPUT
       
       - name: Get current IAM identity
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'

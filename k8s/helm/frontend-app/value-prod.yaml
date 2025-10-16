@@ -4,7 +4,7 @@ environment: production
 replicaCount: 3
 
 image:
-  repository: zeusdev27/myhello-app
+  repository: zeusdev27/myhello
   tag: "latest"
 
 resources:
@@ -28,7 +28,7 @@ ingress:
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-  # cert-manager.io/cluster-issuer: "cloudflare-issuer"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/rate-limit: "100"
     nginx.ingress.kubernetes.io/rate-limit-window: "1m"
   hosts:
@@ -37,10 +37,10 @@ ingress:
         - path: /
           pathType: Prefix
     # Only use grafana.nainika.store for Grafana ingress in its own chart/values
-  # tls:
-  #   - secretName: nainika-store-tls
-  #     hosts:
-  #       - nainika.store
+  tls:
+    - secretName: prod-nainika-store-tls
+      hosts:
+        - prod.nainika.store
 
 monitoring:
   enabled: true

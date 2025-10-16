@@ -4,7 +4,7 @@ environment: staging
 replicaCount: 2
 
 image:
-  repository: zeusdev27/myhello-app
+  repository: zeusdev27/myhello
   tag: "staging"
 
 resources:
@@ -24,17 +24,17 @@ ingress:
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-  # cert-manager.io/cluster-issuer: "cloudflare-issuer"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
   hosts:
     - host: stage.nainika.store
       paths:
         - path: /
           pathType: Prefix
     # Only use grafana.nainika.store for Grafana ingress in its own chart/values
-  # tls:
-  #   - secretName: staging-nainika-store-tls
-  #     hosts:
-  #       - staging.nainika.store
+  tls:
+    - secretName: stage-nainika-store-tls
+      hosts:
+        - stage.nainika.store
 
 monitoring:
   enabled: true

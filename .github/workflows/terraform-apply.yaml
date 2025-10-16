@@ -3,12 +3,12 @@ name: Terraform - Provision EKS
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - 'terraform/**'
   pull_request:
     branches:
-      - master
+      - main
     paths:
       - 'terraform/**'
   workflow_dispatch:
@@ -96,27 +96,71 @@ jobs:
         run: exit 1
       
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -auto-approve -input=false
       
       - name: Get EKS cluster name
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         id: cluster
         run: |
           echo "cluster_name=$(terraform output -raw cluster_name)" >> $GITHUB_OUTPUT
       
+      - name: Get current IAM identity
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        id: iam_identity
+        run: |
+          CURRENT_ARN=$(aws sts get-caller-identity --query Arn --output text)
+          echo "current_arn=$CURRENT_ARN" >> $GITHUB_OUTPUT
+      
+      - name: Add pipeline IAM role to EKS access
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          # Create access entry for the pipeline IAM role
+          aws eks create-access-entry \
+            --cluster-name ${{ steps.cluster.outputs.cluster_name }} \
+            --principal-arn ${{ steps.iam_identity.outputs.current_arn }} \
+            --type STANDARD \
+            --region ${{ env.AWS_REGION }} || true
+          
+          # Associate admin policy with the access entry
+          aws eks associate-access-policy \
+            --cluster-name ${{ steps.cluster.outputs.cluster_name }} \
+            --principal-arn ${{ steps.iam_identity.outputs.current_arn }} \
+            --policy_arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
+            --access-scope type=cluster \
+            --region ${{ env.AWS_REGION }} || true
+      
       - name: Update kubeconfig
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ steps.cluster.outputs.cluster_name }}
       
       - name: Create Namespaces
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           kubectl apply -f ../k8s/namespaces/namespaces.yaml
       
+      - name: Install cert-manager
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          # Add cert-manager Helm repository
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo update
+          
+          # Install cert-manager with CRDs
+          helm upgrade --install cert-manager jetstack/cert-manager \
+            --namespace cert-manager \
+            --create-namespace \
+            --values ../k8s/tls/cert-manager-values.yaml \
+            --wait --timeout=300s
+          
+          # Wait for cert-manager to be ready
+          kubectl wait --for=condition=Available deployment/cert-manager -n cert-manager --timeout=300s
+          kubectl wait --for=condition=Available deployment/cert-manager-webhook -n cert-manager --timeout=300s
+          kubectl wait --for=condition=Available deployment/cert-manager-cainjector -n cert-manager --timeout=300s
+      
       - name: Install NGINX Ingress Controller
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
           helm repo update
@@ -124,25 +168,53 @@ jobs:
             --namespace ingress-nginx \
             --create-namespace \
             --set controller.service.type=LoadBalancer \
+            --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"=nlb \
+            --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-cross-zone-load-balancing-enabled"=true \
             --set controller.metrics.enabled=true \
+            --set controller.metrics.serviceMonitor.enabled=true \
             --set controller.podAnnotations."prometheus\.io/scrape"=true \
             --set controller.podAnnotations."prometheus\.io/port"=10254 \
-            --wait
+            --wait --timeout=300s
+      
+      - name: Wait for LoadBalancer and setup TLS
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          echo "Waiting for LoadBalancer to be ready..."
+          kubectl wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=300s
+          
+          # Get LoadBalancer DNS
+          LB_DNS=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "LoadBalancer DNS: $LB_DNS"
+          echo "⚠️  IMPORTANT: Point your domains to this LoadBalancer:"
+          echo "   grafana.nainika.store -> $LB_DNS"
+          echo "   prod.nainika.store -> $LB_DNS"
+          echo "   stage.nainika.store -> $LB_DNS"
+          
+          # Apply Let's Encrypt cluster issuers and certificates
+          kubectl apply -f ../k8s/tls/letsencrypt-certificates.yaml
       
       - name: Install Prometheus & Grafana
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
         run: |
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo update
+          
+          # Substitute the Grafana password in values file
+          envsubst < ../k8s/monitoring/prometheus-values.yaml > /tmp/prometheus-values.yaml
+          
           helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
             --namespace monitoring \
             --create-namespace \
-            --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
-            --set grafana.adminPassword=${{ secrets.GRAFANA_ADMIN_PASSWORD }} \
-            --wait
+            --values /tmp/prometheus-values.yaml \
+            --wait --timeout=600s
       
       - name: Get LoadBalancer DNS
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           echo "Waiting for LoadBalancer..."
           kubectl wait --namespace ingress-nginx \

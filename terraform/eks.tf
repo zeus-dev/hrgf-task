@@ -1,6 +1,6 @@
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.0.0"
+  version = "~> 20.31.0"
 
   cluster_name    = var.cluster_name
   cluster_version = var.cluster_version
@@ -10,6 +10,34 @@ module "eks" {
 
   # Cluster endpoint configuration
   cluster_endpoint_public_access = true
+  
+  # Manage access entries for IAM users/roles
+  access_entries = {
+    cluster_creator = {
+      principal_arn = "arn:aws:iam::148450584786:user/bala"
+      policy_associations = {
+        admin = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
+    # Add your CI/CD pipeline IAM role here when available
+    # Example:
+    # pipeline_role = {
+    #   principal_arn = "arn:aws:iam::148450584786:role/your-pipeline-role"
+    #   policy_associations = {
+    #     admin = {
+    #       policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+    #       access_scope = {
+    #         type = "cluster"
+    #       }
+    #     }
+    #   }
+    # }
+  }
 
   # EKS Managed Node Group
   eks_managed_node_groups = {
@@ -135,77 +163,5 @@ resource "aws_iam_policy" "aws_load_balancer_controller" {
   tags = var.tags
 }
 
-# Create monitoring namespace
-resource "kubernetes_namespace" "monitoring" {
-  metadata {
-    name = "monitoring"
-    labels = {
-      name = "monitoring"
-    }
-  }
-}
-
-# Deploy kube-prometheus-stack (Prometheus & Grafana)
-resource "helm_release" "monitoring" {
-  name             = "kube-prometheus-stack"
-  repository       = "https://prometheus-community.github.io/helm-charts"
-  chart            = "kube-prometheus-stack"
-  namespace        = kubernetes_namespace.monitoring.metadata[0].name
-  version          = "56.0.0"
-  create_namespace = true
-  values = [
-    yamlencode({
-      grafana = {
-        ingress = {
-          enabled          = true
-          ingressClassName = "nginx"
-          hosts            = ["grafana.nainika.store"]
-          # No TLS config for now
-        }
-      }
-      prometheus = {
-        ingress = {
-          enabled = false
-        }
-      }
-    })
-  ]
-}
-
-# Create ingress-nginx namespace
-resource "kubernetes_namespace" "ingress_nginx" {
-  metadata {
-    name = "ingress-nginx"
-    labels = {
-      name = "ingress-nginx"
-    }
-  }
-}
-
-# Update NGINX Ingress Controller to enable ServiceMonitor for Prometheus
-resource "helm_release" "nginx_ingress" {
-  name             = "ingress-nginx"
-  repository       = "https://kubernetes.github.io/ingress-nginx"
-  chart            = "ingress-nginx"
-  namespace        = kubernetes_namespace.ingress_nginx.metadata[0].name
-  version          = "4.8.3"
-  create_namespace = true
-  values = [
-    yamlencode({
-      controller = {
-        service = {
-          type = "LoadBalancer"
-          annotations = {
-            "service.beta.kubernetes.io/aws-load-balancer-type"                              = "nlb"
-            "service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled" = "true"
-          }
-        }
-        metrics = {
-          enabled        = true
-          serviceMonitor = { enabled = true }
-        }
-      }
-    })
-  ]
-  depends_on = [kubernetes_namespace.ingress_nginx]
-}
+# Note: Kubernetes resources (namespaces, Helm charts) are now managed by the CI/CD pipeline
+# after EKS cluster creation to avoid circular dependency issues with the Kubernetes provider

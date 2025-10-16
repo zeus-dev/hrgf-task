@@ -6,6 +6,10 @@ fullnameOverride: "prometheus"
 
 # Prometheus configuration
 prometheus:
+  # No external ingress - Prometheus is for internal use only
+  # Access via kubectl port-forward if needed: kubectl port-forward -n monitoring svc/prometheus-prometheus 9090:9090
+  # All monitoring data is accessible through Grafana dashboards
+  
   prometheusSpec:
     storageSpec:
       volumeClaimTemplate:
@@ -55,8 +59,9 @@ prometheus:
 grafana:
   enabled: true
   
-  # Admin credentials
-  adminPassword: "admin123!"
+  # Admin credentials - uses GitHub secret for security
+  # adminPassword: "admin123!" # Don't use hardcoded passwords in production
+  adminPassword: ${GRAFANA_ADMIN_PASSWORD}
   
   # Persistence
   persistence:
@@ -78,14 +83,15 @@ grafana:
     enabled: true
     ingressClassName: "nginx"
     annotations:
-      # nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      # cert-manager.io/cluster-issuer: "cloudflare-issuer"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     hosts:
       - grafana.nainika.store
-    # tls:
-    #   - secretName: grafana-nainika-store-tls
-    #     hosts:
-    #       - grafana.nainika.store
+    tls:
+      - secretName: grafana-nainika-store-tls
+        hosts:
+          - grafana.nainika.store
   
   # Dashboard providers
   dashboardProviders:
@@ -155,6 +161,9 @@ grafana:
 # Alert Manager configuration
 alertmanager:
   alertmanagerSpec:
+    # No external ingress - AlertManager is for internal use only
+    # Access via kubectl port-forward if needed: kubectl port-forward -n monitoring svc/prometheus-alertmanager 9093:9093
+    
     storage:
       volumeClaimTemplate:
         spec:

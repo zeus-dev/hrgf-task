@@ -140,6 +140,25 @@ jobs:
         run: |
           kubectl apply -f ../k8s/namespaces/namespaces.yaml
       
+      - name: Install cert-manager
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        run: |
+          # Add cert-manager Helm repository
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo update
+          
+          # Install cert-manager with CRDs
+          helm upgrade --install cert-manager jetstack/cert-manager \
+            --namespace cert-manager \
+            --create-namespace \
+            --values ../k8s/tls/cert-manager-values.yaml \
+            --wait --timeout=300s
+          
+          # Wait for cert-manager to be ready
+          kubectl wait --for=condition=Available deployment/cert-manager -n cert-manager --timeout=300s
+          kubectl wait --for=condition=Available deployment/cert-manager-webhook -n cert-manager --timeout=300s
+          kubectl wait --for=condition=Available deployment/cert-manager-cainjector -n cert-manager --timeout=300s
+      
       - name: Install NGINX Ingress Controller
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
@@ -149,10 +168,33 @@ jobs:
             --namespace ingress-nginx \
             --create-namespace \
             --set controller.service.type=LoadBalancer \
+            --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"=nlb \
+            --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-cross-zone-load-balancing-enabled"=true \
             --set controller.metrics.enabled=true \
+            --set controller.metrics.serviceMonitor.enabled=true \
             --set controller.podAnnotations."prometheus\.io/scrape"=true \
             --set controller.podAnnotations."prometheus\.io/port"=10254 \
-            --wait
+            --wait --timeout=300s
+      
+      - name: Wait for LoadBalancer and setup TLS
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        run: |
+          echo "Waiting for LoadBalancer to be ready..."
+          kubectl wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=300s
+          
+          # Get LoadBalancer DNS
+          LB_DNS=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "LoadBalancer DNS: $LB_DNS"
+          echo "⚠️  IMPORTANT: Point your domains to this LoadBalancer:"
+          echo "   grafana.nainika.store -> $LB_DNS"
+          echo "   prod.nainika.store -> $LB_DNS"
+          echo "   stage.nainika.store -> $LB_DNS"
+          
+          # Apply Let's Encrypt cluster issuers and certificates
+          kubectl apply -f ../k8s/tls/letsencrypt-certificates.yaml
       
       - name: Install Prometheus & Grafana
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
@@ -162,9 +204,8 @@ jobs:
           helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
             --namespace monitoring \
             --create-namespace \
-            --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
-            --set grafana.adminPassword=${{ secrets.GRAFANA_ADMIN_PASSWORD }} \
-            --wait
+            --values ../k8s/monitoring/prometheus-values.yaml \
+            --wait --timeout=600s
       
       - name: Get LoadBalancer DNS
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'

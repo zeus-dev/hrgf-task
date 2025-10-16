@@ -1,0 +1,61 @@
+---
+# cert-manager Helm values for Let's Encrypt integration
+# This configures cert-manager to work with Let's Encrypt HTTP-01 challenges
+
+global:
+  # Resource labels
+  commonLabels:
+    app.kubernetes.io/instance: cert-manager
+
+# cert-manager controller configuration
+installCRDs: true
+
+# Resource limits for cert-manager controller
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 32Mi
+
+# Node selector for cert-manager pods
+nodeSelector:
+  kubernetes.io/os: linux
+
+# Webhook configuration
+webhook:
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 32Mi
+  nodeSelector:
+    kubernetes.io/os: linux
+
+# CA Injector configuration
+cainjector:
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 32Mi
+  nodeSelector:
+    kubernetes.io/os: linux
+
+# Prometheus monitoring
+prometheus:
+  enabled: true
+  servicemonitor:
+    enabled: true
+    prometheusInstance: default
+    targetPort: 9402
+    path: /metrics
+    interval: 60s
+    scrapeTimeout: 30s
+    labels:
+      app: cert-manager

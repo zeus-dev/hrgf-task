@@ -13,7 +13,7 @@ module "eks" {
   cluster_endpoint_public_access = true
 
   # Create KMS key and CloudWatch log group
-  create_kms_key = true
+  create_kms_key              = true
   create_cloudwatch_log_group = true
 
   # Manage access entries for IAM users/roles
@@ -34,13 +34,13 @@ module "eks" {
     # pipeline_role = {
     #   principal_arn = "arn:aws:iam::148450584786:role/your-pipeline-role"
     #   policy_associations = {
-      #     admin = {
-      #       policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-      #       access_scope = {
-      #         type = "cluster"
-      #       }
-      #     }
-      #   }
+    #     admin = {
+    #       policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+    #       access_scope = {
+    #         type = "cluster"
+    #       }
+    #     }
+    #   }
     # }
   }
 

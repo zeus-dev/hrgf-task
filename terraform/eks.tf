@@ -15,7 +15,7 @@
 #   # Disable creation of KMS key and CloudWatch log group (they already exist)
 #   create_kms_key = false
 #   create_cloudwatch_log_group = false
-  
+
 #   # Manage access entries for IAM users/roles
 #   access_entries = {
 #     cluster_creator = {

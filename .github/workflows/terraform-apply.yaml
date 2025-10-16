@@ -3,12 +3,12 @@ name: Terraform - Provision EKS
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - 'terraform/**'
   pull_request:
     branches:
-      - master
+      - main
     paths:
       - 'terraform/**'
   workflow_dispatch:
@@ -96,24 +96,24 @@ jobs:
         run: exit 1
       
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -auto-approve -input=false
       
       - name: Get EKS cluster name
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         id: cluster
         run: |
           echo "cluster_name=$(terraform output -raw cluster_name)" >> $GITHUB_OUTPUT
       
       - name: Get current IAM identity
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         id: iam_identity
         run: |
           CURRENT_ARN=$(aws sts get-caller-identity --query Arn --output text)
           echo "current_arn=$CURRENT_ARN" >> $GITHUB_OUTPUT
       
       - name: Add pipeline IAM role to EKS access
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           # Create access entry for the pipeline IAM role
           aws eks create-access-entry \
@@ -126,22 +126,22 @@ jobs:
           aws eks associate-access-policy \
             --cluster-name ${{ steps.cluster.outputs.cluster_name }} \
             --principal-arn ${{ steps.iam_identity.outputs.current_arn }} \
-            --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
+            --policy_arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
             --access-scope type=cluster \
             --region ${{ env.AWS_REGION }} || true
       
       - name: Update kubeconfig
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ steps.cluster.outputs.cluster_name }}
       
       - name: Create Namespaces
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           kubectl apply -f ../k8s/namespaces/namespaces.yaml
       
       - name: Install cert-manager
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           # Add cert-manager Helm repository
           helm repo add jetstack https://charts.jetstack.io
@@ -160,7 +160,7 @@ jobs:
           kubectl wait --for=condition=Available deployment/cert-manager-cainjector -n cert-manager --timeout=300s
       
       - name: Install NGINX Ingress Controller
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
           helm repo update
@@ -177,7 +177,7 @@ jobs:
             --wait --timeout=300s
       
       - name: Wait for LoadBalancer and setup TLS
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           echo "Waiting for LoadBalancer to be ready..."
           kubectl wait --namespace ingress-nginx \
@@ -197,7 +197,7 @@ jobs:
           kubectl apply -f ../k8s/tls/letsencrypt-certificates.yaml
       
       - name: Install Prometheus & Grafana
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:
           GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
         run: |
@@ -214,7 +214,7 @@ jobs:
             --wait --timeout=600s
       
       - name: Get LoadBalancer DNS
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           echo "Waiting for LoadBalancer..."
           kubectl wait --namespace ingress-nginx \

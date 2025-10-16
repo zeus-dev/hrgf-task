@@ -1,4 +1,4 @@
-#EKS Cluster
+# EKS Cluster
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.31.0"
@@ -13,8 +13,14 @@ module "eks" {
   cluster_endpoint_public_access = true
 
   # Create KMS key and CloudWatch log group
-  create_kms_key              = true
+  create_kms_key              = false
   create_cloudwatch_log_group = true
+
+  # Use existing KMS key for cluster encryption
+  cluster_encryption_config = {
+    provider_key_arn = "arn:aws:kms:ap-south-1:148450584786:key/cb1a325f-ff40-484b-aeae-6b2d1c8fad33"
+    resources        = ["secrets"]
+  }
 
   # Manage access entries for IAM users/roles
   access_entries = {

@@ -45,6 +45,7 @@ spec:
 
 ---
 # Certificate for Grafana (using HTTP-01 challenge)
+# Grafana is the only monitoring component with external access
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:

@@ -198,13 +198,19 @@ jobs:
       
       - name: Install Prometheus & Grafana
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        env:
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
         run: |
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo update
+          
+          # Substitute the Grafana password in values file
+          envsubst < ../k8s/monitoring/prometheus-values.yaml > /tmp/prometheus-values.yaml
+          
           helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
             --namespace monitoring \
             --create-namespace \
-            --values ../k8s/monitoring/prometheus-values.yaml \
+            --values /tmp/prometheus-values.yaml \
             --wait --timeout=600s
       
       - name: Get LoadBalancer DNS

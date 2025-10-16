@@ -10,6 +10,10 @@ module "eks" {
 
   # Cluster endpoint configuration
   cluster_endpoint_public_access = true
+
+  # Disable creation of KMS key and CloudWatch log group (they already exist)
+  create_kms_key = false
+  create_cloudwatch_log_group = false
   
   # Manage access entries for IAM users/roles
   access_entries = {
@@ -119,49 +123,49 @@ module "eks" {
   tags = var.tags
 }
 
-# AWS Load Balancer Controller IAM Policy
-resource "aws_iam_policy" "aws_load_balancer_controller" {
-  name        = "${var.cluster_name}-aws-load-balancer-controller"
-  description = "IAM policy for AWS Load Balancer Controller"
+# AWS Load Balancer Controller IAM Policy (commented out as it already exists)
+# resource "aws_iam_policy" "aws_load_balancer_controller" {
+#   name        = "${var.cluster_name}-aws-load-balancer-controller"
+#   description = "IAM policy for AWS Load Balancer Controller"
 
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "iam:CreateServiceLinkedRole",
-          "ec2:DescribeAccountAttributes",
-          "ec2:DescribeAddresses",
-          "ec2:DescribeAvailabilityZones",
-          "ec2:DescribeInternetGateways",
-          "ec2:DescribeVpcs",
-          "ec2:DescribeSubnets",
-          "ec2:DescribeSecurityGroups",
-          "ec2:DescribeInstances",
-          "ec2:DescribeNetworkInterfaces",
-          "ec2:DescribeTags",
-          "ec2:GetCoipPoolUsage",
-          "ec2:DescribeCoipPools",
-          "elasticloadbalancing:*",
-          "cognito-idp:DescribeUserPoolClient",
-          "acm:ListCertificates",
-          "acm:DescribeCertificate",
-          "iam:ListServerCertificates",
-          "iam:GetServerCertificate",
-          "waf-regional:*",
-          "wafv2:*",
-          "shield:*",
-          "tag:GetResources",
-          "tag:TagResources"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "iam:CreateServiceLinkedRole",
+#           "ec2:DescribeAccountAttributes",
+#           "ec2:DescribeAddresses",
+#           "ec2:DescribeAvailabilityZones",
+#           "ec2:DescribeInternetGateways",
+#           "ec2:DescribeVpcs",
+#           "ec2:DescribeSubnets",
+#           "ec2:DescribeSecurityGroups",
+#           "ec2:DescribeInstances",
+#           "ec2:DescribeNetworkInterfaces",
+#           "ec2:DescribeTags",
+#           "ec2:GetCoipPoolUsage",
+#           "ec2:DescribeCoipPools",
+#           "elasticloadbalancing:*",
+#           "cognito-idp:DescribeUserPoolClient",
+#           "acm:ListCertificates",
+#           "acm:DescribeCertificate",
+#           "iam:ListServerCertificates",
+#           "iam:GetServerCertificate",
+#           "waf-regional:*",
+#           "wafv2:*",
+#           "shield:*",
+#           "tag:GetResources",
+#           "tag:TagResources"
+#         ]
+#         Resource = "*"
+#       }
+#     ]
+#   })
 
-  tags = var.tags
-}
+#   tags = var.tags
+# }
 
 # Note: Kubernetes resources (namespaces, Helm charts) are now managed by the CI/CD pipeline
 # after EKS cluster creation to avoid circular dependency issues with the Kubernetes provider

@@ -295,6 +295,27 @@ jobs:
           
           echo "cert-manager installed successfully"
       
+      - name: Install Prometheus CRDs
+        run: |
+          set -e
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo update
+          
+          # Install only the CRDs from kube-prometheus-stack
+          helm upgrade --install prometheus-crds prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            --create-namespace \
+            --set kubeStateMetrics.enabled=false \
+            --set nodeExporter.enabled=false \
+            --set grafana.enabled=false \
+            --set prometheus.enabled=false \
+            --set alertmanager.enabled=false \
+            --set prometheusOperator.enabled=false \
+            --set defaultRules.enabled=false \
+            --wait --timeout=300s
+          
+          echo "Prometheus CRDs installed successfully"
+      
       - name: Install NGINX Ingress Controller
         run: |
           set -e
@@ -308,7 +329,7 @@ jobs:
             --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"=nlb \
             --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-cross-zone-load-balancing-enabled"=true \
             --set controller.metrics.enabled=true \
-            --set controller.metrics.serviceMonitor.enabled=false \
+            --set controller.metrics.serviceMonitor.enabled=true \
             --set controller.podAnnotations."prometheus\.io/scrape"=true \
             --set controller.podAnnotations."prometheus\.io/port"=10254 \
             --wait --timeout=300s
@@ -375,15 +396,19 @@ jobs:
           
           helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
             --namespace monitoring \
-            --create-namespace \
+            --set kubeStateMetrics.enabled=true \
+            --set nodeExporter.enabled=true \
+            --set grafana.enabled=true \
+            --set prometheus.enabled=true \
+            --set alertmanager.enabled=true \
+            --set prometheusOperator.enabled=true \
+            --set defaultRules.enabled=true \
+            --set crds.enabled=false \
             --values ../k8s/monitoring/prometheus-values.yaml \
             --set grafana.adminPassword="$GRAFANA_ADMIN_PASSWORD" \
             --wait --timeout=600s
           
           echo "Monitoring stack installed successfully"
-          
-          # Create ServiceMonitor for NGINX Ingress Controller
-          kubectl apply -f ../k8s/monitoring/ingress-nginx-servicemonitor.yaml
       
       - name: Deployment Summary
         run: |

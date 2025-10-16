@@ -101,45 +101,11 @@ jobs:
               head -20 trivy-results.sarif
             else
               echo "SARIF file is empty - creating minimal valid SARIF"
-              cat > trivy-results.sarif << 'EOF'
-              {
-                "version": "2.1.0",
-                "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
-                "runs": [
-                  {
-                    "tool": {
-                      "driver": {
-                        "name": "Trivy",
-                        "version": "0.0.0",
-                        "informationUri": "https://github.com/aquasecurity/trivy"
-                      }
-                    },
-                    "results": []
-                  }
-                ]
-              }
-              EOF
+              echo '{"version":"2.1.0","$schema":"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json","runs":[{"tool":{"driver":{"name":"Trivy","version":"0.0.0","informationUri":"https://github.com/aquasecurity/trivy"}},"results":[]}]}' > trivy-results.sarif
             fi
           else
             echo "SARIF file not found - creating minimal valid SARIF"
-            cat > trivy-results.sarif << 'EOF'
-            {
-              "version": "2.1.0",
-              "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
-              "runs": [
-                {
-                  "tool": {
-                    "driver": {
-                      "name": "Trivy",
-                      "version": "0.0.0",
-                      "informationUri": "https://github.com/aquasecurity/trivy"
-                    }
-                  },
-                  "results": []
-                }
-              ]
-            }
-            EOF
+            echo '{"version":"2.1.0","$schema":"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json","runs":[{"tool":{"driver":{"name":"Trivy","version":"0.0.0","informationUri":"https://github.com/aquasecurity/trivy"}},"results":[]}]}' > trivy-results.sarif
           fi
       
       - name: Validate SARIF file
@@ -154,45 +120,11 @@ jobs:
                 echo "✅ SARIF file has required structure"
               else
                 echo "❌ SARIF file missing required fields, recreating..."
-                cat > trivy-results.sarif << 'EOF'
-                {
-                  "version": "2.1.0",
-                  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
-                  "runs": [
-                    {
-                      "tool": {
-                        "driver": {
-                          "name": "Trivy",
-                          "version": "0.0.0",
-                          "informationUri": "https://github.com/aquasecurity/trivy"
-                        }
-                      },
-                      "results": []
-                    }
-                  ]
-                }
-                EOF
+                echo '{"version":"2.1.0","$schema":"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json","runs":[{"tool":{"driver":{"name":"Trivy","version":"0.0.0","informationUri":"https://github.com/aquasecurity/trivy"}},"results":[]}]}' > trivy-results.sarif
               fi
             else
               echo "❌ SARIF file is not valid JSON, recreating..."
-              cat > trivy-results.sarif << 'EOF'
-              {
-                "version": "2.1.0",
-                "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
-                "runs": [
-                  {
-                    "tool": {
-                      "driver": {
-                        "name": "Trivy",
-                        "version": "0.0.0",
-                        "informationUri": "https://github.com/aquasecurity/trivy"
-                      }
-                    },
-                    "results": []
-                  }
-                ]
-              }
-              EOF
+              echo '{"version":"2.1.0","$schema":"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json","runs":[{"tool":{"driver":{"name":"Trivy","version":"0.0.0","informationUri":"https://github.com/aquasecurity/trivy"}},"results":[]}]}' > trivy-results.sarif
             fi
           else
             echo "❌ SARIF file not found"
@@ -201,9 +133,10 @@ jobs:
       
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
-        if: always() && github.repository == github.event.repository.full_name
+        if: always() && github.repository == github.event.repository.full_name && github.event.repository.private == false
         with:
           sarif_file: 'trivy-results.sarif'
+          token: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
       
       - name: Update kubeconfig

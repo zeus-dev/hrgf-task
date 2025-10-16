@@ -9,3 +9,6 @@ build/
 *.tfstate.backup
 frontend/package-lock.json
 .serena
+.vscode/
+.idea/
+*.iml   

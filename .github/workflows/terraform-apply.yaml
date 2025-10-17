@@ -406,6 +406,28 @@ jobs:
           
           echo "Monitoring stack installed successfully"
       
+      - name: Install Cluster Autoscaler
+        run: |
+          set -e
+          
+          # Install Cluster Autoscaler for automatic node scaling
+          helm repo add autoscaler https://kubernetes.github.io/autoscaler
+          helm repo update
+          
+          helm upgrade --install cluster-autoscaler autoscaler/cluster-autoscaler \
+            --namespace kube-system \
+            --set autoDiscovery.clusterName=${{ steps.outputs.outputs.cluster_name }} \
+            --set awsRegion=${{ env.AWS_REGION }} \
+            --set rbac.serviceAccount.create=true \
+            --set rbac.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::148450584786:role/cluster-autoscaler-role" \
+            --set extraArgs.balance-similar-node-groups=true \
+            --set extraArgs.skip-nodes-with-system-pods=false \
+            --set extraArgs.scale-down-utilization-threshold=0.7 \
+            --set extraArgs.scale-down-unneeded-time=2m \
+            --wait --timeout=300s
+          
+          echo "Cluster Autoscaler installed successfully"
+      
       - name: Deployment Summary
         run: |
           echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
@@ -433,6 +455,7 @@ jobs:
           echo "- ✅ cert-manager" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ NGINX Ingress Controller" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Prometheus & Grafana" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Cluster Autoscaler" >> $GITHUB_STEP_SUMMARY
 
   # Destroy job
   destroy:
@@ -474,6 +497,7 @@ jobs:
             aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name "$CLUSTER_NAME" || true
             
             helm uninstall kube-prometheus-stack -n monitoring || true
+            helm uninstall cluster-autoscaler -n kube-system || true
             helm uninstall ingress-nginx -n ingress-nginx || true
             helm uninstall cert-manager -n cert-manager || true
             

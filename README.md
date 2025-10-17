@@ -26,7 +26,7 @@ This project demonstrates a complete automated Kubernetes deployment pipeline fo
 
 - **Production**: [https://prod.nainika.store](https://prod.nainika.store)
 - **Staging**: [https://stage.nainika.store](https://stage.nainika.store)
-- **Monitoring**: [https://grafana.nainika.store](https://grafana.nainika.store) (admin/admin@123)
+- **Monitoring**: [https://grafana.nainika.store](https://grafana.nainika.store) 
 
 ## 🏗️ Architecture
 

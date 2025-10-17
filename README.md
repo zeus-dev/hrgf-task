@@ -47,7 +47,7 @@ graph TB
     subgraph "AWS Cloud (ap-south-1)"
         subgraph "VPC & Networking"
             E[EKS Cluster<br/>nasa-eks]
-            F[Node Groups<br/>t3.medium instances]
+            F[Node Groups<br/>t3.small instances]
             G[S3 Backend<br/>Terraform State]
             H[DynamoDB<br/>State Locking]
         end
@@ -79,7 +79,7 @@ graph TB
 
     subgraph "External Services"
         U[Let's Encrypt<br/>ACME Server]
-        V[Route 53<br/>DNS Records]
+        V[Cloudflare<br/>DNS Records<br/>Full Strict SSL]
     end
 
     A --> B
@@ -115,6 +115,18 @@ graph TB
 - **Scalability**: Configurable replicas, resource limits, horizontal pod autoscaling ready
 - **Observability**: Comprehensive monitoring with Prometheus metrics and Grafana visualization
 - **Automation**: Fully automated CI/CD with security gates and rollback capabilities
+
+### Generate PNG Diagram
+To generate a PNG image of the architecture diagram:
+```bash
+# Install Mermaid CLI
+npm install -g @mermaid-js/mermaid-cli
+
+# Generate PNG from Mermaid file
+mmdc -i architecture.mmd -o architecture.png -t dark -b transparent
+```
+
+The `architecture.mmd` file is included in the repository root for PNG generation.
 
 ## 🛠️ Technology Stack
 
@@ -266,10 +278,6 @@ helm upgrade --install frontend-app-prod ./k8s/helm/frontend-app \
 ## 📊 Monitoring Dashboard
 
 Access the monitoring stack at [https://grafana.nainika.store](https://grafana.nainika.store)
-
-**Default Credentials:**
-- Username: `admin`
-- Password: `admin@123`
 
 **Available Dashboards:**
 - Kubernetes Cluster Monitoring

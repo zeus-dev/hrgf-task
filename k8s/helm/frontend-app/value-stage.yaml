@@ -1,7 +1,7 @@
 # Staging environment values
 environment: staging
 
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: zeusdev27/myhello

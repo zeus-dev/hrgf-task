@@ -35,7 +35,7 @@ module "eks" {
         }
       }
     }
-   
+
   }
 
   # EKS Managed Node Group

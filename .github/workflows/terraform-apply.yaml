@@ -269,27 +269,27 @@ jobs:
           kubectl cluster-info
           kubectl get nodes
       
-      - name: Install Cluster Autoscaler
-        run: |
-          set -e
-          
-          # Install Cluster Autoscaler for automatic node scaling
-          helm repo add autoscaler https://kubernetes.github.io/autoscaler
-          helm repo update
-          
-          helm upgrade --install cluster-autoscaler autoscaler/cluster-autoscaler \
-            --namespace kube-system \
-            --set autoDiscovery.clusterName=${{ steps.outputs.outputs.cluster_name }} \
-            --set awsRegion=${{ env.AWS_REGION }} \
-            --set rbac.serviceAccount.create=true \
-            --set rbac.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="${{ steps.outputs.outputs.autoscaler_role_arn }}" \
-            --set extraArgs.balance-similar-node-groups=true \
-            --set extraArgs.skip-nodes-with-system-pods=false \
-            --set extraArgs.scale-down-utilization-threshold=0.7 \
-            --set extraArgs.scale-down-unneeded-time=2m \
-            --wait --timeout=600s
-          
-          echo "Cluster Autoscaler installed successfully"
+      # - name: Install Cluster Autoscaler
+      #   run: |
+      #     set -e
+      #     
+      #     # Install Cluster Autoscaler for automatic node scaling
+      #     helm repo add autoscaler https://kubernetes.github.io/autoscaler
+      #     helm repo update
+      #     
+      #     helm upgrade --install cluster-autoscaler autoscaler/cluster-autoscaler \
+      #       --namespace kube-system \
+      #       --set autoDiscovery.clusterName=${{ steps.outputs.outputs.cluster_name }} \
+      #       --set awsRegion=${{ env.AWS_REGION }} \
+      #       --set rbac.serviceAccount.create=true \
+      #       --set rbac.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="${{ steps.outputs.outputs.autoscaler_role_arn }}" \
+      #       --set extraArgs.balance-similar-node-groups=true \
+      #       --set extraArgs.skip-nodes-with-system-pods=false \
+      #       --set extraArgs.scale-down-utilization-threshold=0.7 \
+      #       --set extraArgs.scale-down-unneeded-time=2m \
+      #       --wait --timeout=600s
+      #     
+      #     echo "Cluster Autoscaler installed successfully"
       
       - name: Create Namespaces
         run: |

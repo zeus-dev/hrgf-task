@@ -227,8 +227,11 @@ jobs:
         id: outputs
         run: |
           CLUSTER_NAME=$(jq -r '.cluster_name.value' outputs.json)
+          AUTOSCALER_ROLE_ARN=$(jq -r '.cluster_autoscaler_role_arn.value' outputs.json)
           echo "cluster_name=$CLUSTER_NAME" >> $GITHUB_OUTPUT
+          echo "autoscaler_role_arn=$AUTOSCALER_ROLE_ARN" >> $GITHUB_OUTPUT
           echo "Cluster: $CLUSTER_NAME"
+          echo "Autoscaler Role ARN: $AUTOSCALER_ROLE_ARN"
       
       - name: Configure EKS access for pipeline
         run: |
@@ -419,7 +422,7 @@ jobs:
             --set autoDiscovery.clusterName=${{ steps.outputs.outputs.cluster_name }} \
             --set awsRegion=${{ env.AWS_REGION }} \
             --set rbac.serviceAccount.create=true \
-            --set rbac.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::148450584786:role/cluster-autoscaler-role" \
+            --set rbac.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="${{ steps.outputs.outputs.autoscaler_role_arn }}" \
             --set extraArgs.balance-similar-node-groups=true \
             --set extraArgs.skip-nodes-with-system-pods=false \
             --set extraArgs.scale-down-utilization-threshold=0.7 \

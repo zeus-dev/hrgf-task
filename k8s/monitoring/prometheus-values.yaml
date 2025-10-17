@@ -3,7 +3,32 @@ fullnameOverride: "prometheus"
 
 # Prometheus - MINIMAL (just for metrics collection)
 prometheus:
-  enabled: false
+  enabled: true
+  prometheusSpec:
+    replicas: 1
+    retention: 24h
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        cpu: 100m
+        memory: 512Mi
+    persistence:
+      enabled: false
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp2
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+  
+  # Service Monitor for metrics collection
+  serviceMonitor:
+    enabled: true
+    interval: 60s
 
 # Grafana - minimal config
 grafana:
@@ -42,13 +67,56 @@ nodeExporter:
       cpu: 10m
       memory: 16Mi
 
-# Kube State Metrics - DISABLED
+# Kube State Metrics - minimal resources
 kubeStateMetrics:
-  enabled: false
+  enabled: true
+  resources:
+    limits:
+      cpu: 20m
+      memory: 48Mi
+    requests:
+      cpu: 10m
+      memory: 24Mi
 
-# DISABLE components to save resources
+# AlertManager - minimal config
 alertmanager:
-  enabled: false
+  enabled: true
+  alertmanagerSpec:
+    replicas: 1
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 20m
+        memory: 64Mi
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp2
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
 
 defaultRules:
-  create: false
+  create: true
+  rules:
+    alertmanager: false
+    etcd: false
+    kubeApiserverAvailability: true
+    kubeApiserverSlos: false
+    kubelet: true
+    kubeProxy: false
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubernetesApps: false
+    kubernetesResources: false
+    kubernetesStorage: false
+    kubernetesSystem: false
+    kubeScheduler: false
+    kubeStateMetrics: true
+    network: false
+    node: true
+    prometheus: true
+    prometheusOperator: true

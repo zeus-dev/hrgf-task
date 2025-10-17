@@ -37,7 +37,7 @@ variable "instance_types" {
 variable "desired_size" {
   description = "Desired number of worker nodes"
   type        = number
-  default     = 2
+  default     = 4
 }
 
 variable "min_size" {
@@ -49,7 +49,7 @@ variable "min_size" {
 variable "max_size" {
   description = "Maximum number of worker nodes"
   type        = number
-  default     = 3 # Allow 1 extra node for monitoring
+  default     = 4
 }
 
 variable "tags" {

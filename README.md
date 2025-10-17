@@ -30,62 +30,7 @@ This project demonstrates a complete automated Kubernetes deployment pipeline fo
 
 ## 🏗️ Architecture
 
-```mermaid
-graph TB
-    subgraph "GitHub"
-        A[GitHub Repository]
-        B[GitHub Actions]
-    end
-    
-    subgraph "Docker Hub"
-        P[Frontend Images]
-    end
-    
-    subgraph "AWS Cloud - ap-south-1"
-        subgraph "VPC"
-            C[EKS Cluster]
-            subgraph "EKS Nodes"
-                D[Node Group]
-            end
-        end
-        E[Application Load Balancer]
-    end
-    
-    subgraph "Cloudflare"
-        G[DNS - nainika.store]
-        H[TLS Certificates]
-    end
-    
-    subgraph "K8s Namespaces"
-        subgraph "prod"
-            I[Frontend App - Prod]
-            J[Ingress - Prod]
-        end
-        subgraph "stage"
-            K[Frontend App - Stage]
-            L[Ingress - Stage]
-        end
-        subgraph "monitoring"
-            M[Prometheus]
-            N[Grafana]
-        end
-        subgraph "ingress-nginx"
-            O[NGINX Ingress Controller]
-        end
-    end
-    
-    A --> B
-    B -->|Terraform Apply| C
-    B -->|Docker Build & Push| P
-    B -->|Helm Deploy| I
-    B -->|Helm Deploy| K
-    G --> E
-    E --> O
-    O --> J
-    O --> L
-    J --> I
-    L --> K
-```
+![Architecture Diagram](architecture.png)
 
 ## 📦 Project Structure
 

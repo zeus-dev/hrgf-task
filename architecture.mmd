@@ -1,71 +1,57 @@
 graph TB
-    subgraph "Developer"
-        A[Git Push to main/develop]
-    end
-
     subgraph "GitHub"
-        B[Git Repository] --> C[GitHub Actions CI/CD]
+        A[GitHub Repository]
+        B[GitHub Actions]
     end
-
+    
     subgraph "Docker Hub"
-        D[Docker Images<br/>zeusdev27/myhello-app]
+        P[Frontend Images]
     end
-
-    subgraph "AWS Cloud (ap-south-1)"
-        subgraph "VPC & Networking"
-            E[EKS Cluster<br/>nasa-eks v1.34]
-            F[Node Groups<br/>t3.small instances<br/>3 nodes]
-            G[S3 Backend<br/>Terraform State]
-            H[DynamoDB<br/>State Locking]
-        end
-
-        subgraph "Kubernetes Components"
-            I[NGINX Ingress<br/>Controller]
-            J[cert-manager<br/>Let's Encrypt]
-        end
-
-        subgraph "Namespaces"
-            subgraph "prod"
-                K[Frontend App<br/>3 replicas]
-                L[Ingress<br/>prod.nainika.store]
-                M[TLS Certificate<br/>Let's Encrypt]
-            end
-            subgraph "stage"
-                N[Frontend App<br/>2 replicas]
-                O[Ingress<br/>stage.nainika.store]
-                P[TLS Certificate<br/>Let's Encrypt]
-            end
-            subgraph "monitoring"
-                Q[Prometheus<br/>Metrics Collection]
-                R[Grafana<br/>Dashboards]
-                S[Ingress<br/>grafana.nainika.store]
-                T[TLS Certificate<br/>Let's Encrypt]
+    
+    subgraph "AWS Cloud - ap-south-1"
+        subgraph "VPC"
+            C[EKS Cluster]
+            subgraph "EKS Nodes"
+                D[Node Group]
             end
         end
+        E[Application Load Balancer]
     end
-
-    subgraph "External Services"
-        U[Let's Encrypt<br/>ACME Server]
-        V[Cloudflare<br/>DNS Records<br/>Full Strict SSL]
+    
+    subgraph "Cloudflare"
+        G[DNS - nainika.store]
+        H[Let's Encrypt Certificates]
     end
-
+    
+    subgraph "K8s Namespaces"
+        subgraph "prod"
+            I[Frontend App - Prod]
+            J[Ingress - Prod]
+        end
+        subgraph "stage"
+            K[Frontend App - Stage]
+            L[Ingress - Stage]
+        end
+        subgraph "monitoring"
+            M[Prometheus]
+            N[Grafana]
+        end
+        subgraph "ingress-nginx"
+            O[NGINX Ingress Controller]
+        end
+    end
+    
     A --> B
-    C -->|Terraform Plan/Apply| E
-    C -->|Docker Build & Scan| D
-    C -->|Helm Deploy| K
-    C -->|Helm Deploy| N
-    C -->|Helm Deploy| Q
-    E --> F
-    E --> G
-    E --> H
-    I --> L
-    I --> O
-    I --> S
-    J --> M
-    J --> P
-    J --> T
-    J -->|Requests Certs| U
-    V -->|DNS-01 Challenge| U
+    B -->|Terraform Apply| C
+    B -->|Docker Build & Push| P
+    B -->|Helm Deploy| I
+    B -->|Helm Deploy| K
+    G --> E
+    E --> O
+    O --> J
+    O --> L
+    J --> I
+    L --> K
 
     classDef aws fill:#FF9900,color:#000
     classDef k8s fill:#326CE5,color:#FFF

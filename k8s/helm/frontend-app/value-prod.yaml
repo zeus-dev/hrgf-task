@@ -9,11 +9,11 @@ image:
 
 resources:
   limits:
-    cpu: 50m      # Reduced for static pages
-    memory: 64Mi  # Reduced for static pages
+    cpu: 10m      # Ultra minimal - static page only
+    memory: 16Mi  # Ultra minimal - static page only
   requests:
-    cpu: 20m      # Reduced for static pages
-    memory: 32Mi  # Reduced for static pages
+    cpu: 5m       # Ultra minimal - static page only
+    memory: 8Mi   # Ultra minimal - static page only
 
 autoscaling:
   enabled: true

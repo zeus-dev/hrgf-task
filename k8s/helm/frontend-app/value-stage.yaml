@@ -23,14 +23,13 @@ ingress:
   className: "nginx"
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
   hosts:
     - host: stage.nainika.store
       paths:
         - path: /
           pathType: Prefix
-    # Only use grafana.nainika.store for Grafana ingress in its own chart/values
   tls:
     - secretName: stage-nainika-store-tls
       hosts:

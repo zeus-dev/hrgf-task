@@ -3,51 +3,32 @@
 ## Problem
 The Terraform pipeline was failing with this error:
 ```
-Error: unable to build kubernetes objects from release manifest: [resource mapping not found for name: "prometheus-alertmanager" namespace: "monitoring" from "": no matches for kind "Alertmanager" in version "monitoring.coreos.com/v1"
-ensure CRDs are installed first, resource mapping not found for name: "prometheus-prometheus" namespace: "monitoring" from "": no matches for kind "Prometheus" in version "monitoring.coreos.com/v1"
-ensure CRDs are installed first]
+The CustomResourceDefinition "alertmanagerconfigs.monitoring.coreos.com" is invalid: metadata.annotations: Too long: may not be more than 262144 bytes
+Error: Process completed with exit code 1
 ```
 
 ## Root Cause
-The `kube-prometheus-stack` Helm chart requires **Custom Resource Definitions (CRDs)** to be installed **before** the chart itself can be deployed. The workflow was using `--set crds.enabled=false` which disables CRD installation by the chart, but the CRDs were never installed separately.
+The workflow was manually installing Prometheus CRDs using `kubectl apply` with CRD files from the prometheus-operator GitHub repository. These CRD files contain very large annotations that exceed Kubernetes' 262,144 byte limit for metadata.annotations.
 
 ## Solution Applied
 
-### 1. Install CRDs Before Chart Deployment
-Added CRD installation commands before deploying the Prometheus stack:
+### 1. Use Helm Chart CRDs Instead of Manual Installation
+Instead of manually installing CRDs with `kubectl apply`, we now let the kube-prometheus-stack Helm chart handle CRD installation by setting `crds.enabled=true`. The Helm chart includes properly formatted CRDs that don't exceed the annotation size limits.
 
-```bash
-# Install CRDs first (required for kube-prometheus-stack)
-echo "Installing Prometheus CRDs..."
-kubectl apply -f https://raw.githubusercontent.com/prometheus-community/helm-charts/main/charts/kube-prometheus-stack/crds/crd-alertmanagerconfigs.yaml
-kubectl apply -f https://raw.githubusercontent.com/prometheus-community/helm-charts/main/charts/kube-prometheus-stack/crds/crd-alertmanagers.yaml
-kubectl apply -f https://raw.githubusercontent.com/prometheus-community/helm-charts/main/charts/kube-prometheus-stack/crds/crd-podmonitors.yaml
-kubectl apply -f https://raw.githubusercontent.com/prometheus-community/helm-charts/main/charts/kube-prometheus-stack/crds/crd-probes.yaml
-kubectl apply -f https://raw.githubusercontent.com/prometheus-community/helm-charts/main/charts/kube-prometheus-stack/crds/crd-prometheuses.yaml
-kubectl apply -f https://raw.githubusercontent.com/prometheus-community/helm-charts/main/charts/kube-prometheus-stack/crds/crd-prometheusrules.yaml
-kubectl apply -f https://raw.githubusercontent.com/prometheus-community/helm-charts/main/charts/kube-prometheus-stack/crds/crd-servicemonitors.yaml
-kubectl apply -f https://raw.githubusercontent.com/prometheus-community/helm-charts/main/charts/kube-prometheus-stack/crds/crd-thanosrulers.yaml
+**Changes Made:**
+- Removed manual CRD installation commands (`kubectl apply` for all CRDs)
+- Changed `crds.enabled=false` to `crds.enabled=true` in the kube-prometheus-stack Helm installation
+- Removed manual CRD deletion in the destroy workflow since Helm now manages the CRDs
 
-# Wait for CRDs to be established
-echo "Waiting for CRDs to be established..."
-kubectl wait --for=condition=established --timeout=60s crd/alertmanagers.monitoring.coreos.com
-kubectl wait --for=condition=established --timeout=60s crd/prometheuses.monitoring.coreos.com
-```
+### 2. Benefits of This Approach
+- ✅ Eliminates CRD annotation size limit errors
+- ✅ Ensures CRDs are properly managed by Helm
+- ✅ Simplifies the deployment process
+- ✅ More reliable CRD installation and cleanup
+- ✅ Automatic CRD updates with Helm chart updates
 
-### 2. Added CRD Cleanup on Destroy
-Added CRD cleanup in the destroy workflow:
-
-```bash
-# Clean up Prometheus CRDs
-kubectl delete crd alertmanagerconfigs.monitoring.coreos.com || true
-kubectl delete crd alertmanagers.monitoring.coreos.com || true
-kubectl delete crd podmonitors.monitoring.coreos.com || true
-kubectl delete crd probes.monitoring.coreos.com || true
-kubectl delete crd prometheuses.monitoring.coreos.com || true
-kubectl delete crd prometheusrules.monitoring.coreos.com || true
-kubectl delete crd servicemonitors.monitoring.coreos.com || true
-kubectl delete crd thanosrulers.monitoring.coreos.com || true
-```
+## Previous Issues (Resolved)
+The pipeline previously failed with CRD mapping errors because CRDs weren't installed at all. This was fixed by initially adding manual CRD installation, but then encountered the annotation size limit issue which is now resolved by using Helm-managed CRDs.
 
 ## Files Modified
 - `.github/workflows/terraform-apply.yaml` - Added CRD installation and cleanup

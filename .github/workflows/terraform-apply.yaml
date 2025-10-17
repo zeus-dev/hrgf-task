@@ -389,6 +389,22 @@ jobs:
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo update
           
+          # Install CRDs first (required for kube-prometheus-stack)
+          echo "Installing Prometheus CRDs..."
+          kubectl apply -f https://raw.githubusercontent.com/prometheus-community/helm-charts/main/charts/kube-prometheus-stack/crds/crd-alertmanagerconfigs.yaml
+          kubectl apply -f https://raw.githubusercontent.com/prometheus-community/helm-charts/main/charts/kube-prometheus-stack/crds/crd-alertmanagers.yaml
+          kubectl apply -f https://raw.githubusercontent.com/prometheus-community/helm-charts/main/charts/kube-prometheus-stack/crds/crd-podmonitors.yaml
+          kubectl apply -f https://raw.githubusercontent.com/prometheus-community/helm-charts/main/charts/kube-prometheus-stack/crds/crd-probes.yaml
+          kubectl apply -f https://raw.githubusercontent.com/prometheus-community/helm-charts/main/charts/kube-prometheus-stack/crds/crd-prometheuses.yaml
+          kubectl apply -f https://raw.githubusercontent.com/prometheus-community/helm-charts/main/charts/kube-prometheus-stack/crds/crd-prometheusrules.yaml
+          kubectl apply -f https://raw.githubusercontent.com/prometheus-community/helm-charts/main/charts/kube-prometheus-stack/crds/crd-servicemonitors.yaml
+          kubectl apply -f https://raw.githubusercontent.com/prometheus-community/helm-charts/main/charts/kube-prometheus-stack/crds/crd-thanosrulers.yaml
+          
+          # Wait for CRDs to be established
+          echo "Waiting for CRDs to be established..."
+          kubectl wait --for=condition=established --timeout=60s crd/alertmanagers.monitoring.coreos.com
+          kubectl wait --for=condition=established --timeout=60s crd/prometheuses.monitoring.coreos.com
+          
           helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
             --namespace monitoring \
             --set kubeStateMetrics.enabled=true \
@@ -475,6 +491,16 @@ jobs:
             helm uninstall kube-prometheus-stack -n monitoring || true
             helm uninstall ingress-nginx -n ingress-nginx || true
             helm uninstall cert-manager -n cert-manager || true
+            
+            # Clean up Prometheus CRDs
+            kubectl delete crd alertmanagerconfigs.monitoring.coreos.com || true
+            kubectl delete crd alertmanagers.monitoring.coreos.com || true
+            kubectl delete crd podmonitors.monitoring.coreos.com || true
+            kubectl delete crd probes.monitoring.coreos.com || true
+            kubectl delete crd prometheuses.monitoring.coreos.com || true
+            kubectl delete crd prometheusrules.monitoring.coreos.com || true
+            kubectl delete crd servicemonitors.monitoring.coreos.com || true
+            kubectl delete crd thanosrulers.monitoring.coreos.com || true
             
             # Wait for LoadBalancer deletion
             sleep 30

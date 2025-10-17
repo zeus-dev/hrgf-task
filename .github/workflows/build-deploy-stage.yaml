@@ -85,7 +85,6 @@ jobs:
           sleep 30
           # Check if the service is accessible (you may need to adjust this based on your setup)
           kubectl get endpoints -n ${{ env.NAMESPACE }}
-        run: |
           echo "Waiting for pods to be ready..."
           kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=frontend-app -n ${{ env.NAMESPACE }} --timeout=300s
           echo "Deployment successful!"

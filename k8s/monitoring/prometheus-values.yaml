@@ -9,11 +9,11 @@ prometheus:
     retention: 24h
     resources:
       requests:
-        cpu: 50m
-        memory: 256Mi
-      limits:
         cpu: 100m
         memory: 512Mi
+      limits:
+        cpu: 200m
+        memory: 1Gi
     persistence:
       enabled: false
     storageSpec:
@@ -37,11 +37,11 @@ grafana:
   replicas: 1
   resources:
     limits:
+      cpu: 100m
+      memory: 256Mi
+    requests:
       cpu: 50m
       memory: 128Mi
-    requests:
-      cpu: 25m
-      memory: 64Mi
   persistence:
     enabled: false
   ingress:

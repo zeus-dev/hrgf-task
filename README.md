@@ -130,18 +130,15 @@ The `architecture.mmd` file is included in the repository root for PNG generatio
 
 ## 🛠️ Technology Stack
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| **Cloud Provider** | AWS EKS | Managed Kubernetes cluster |
-| **Infrastructure** | Terraform | Infrastructure as Code |
-| **Containerization** | Docker | Application packaging |
-| **Orchestration** | Kubernetes + Helm | Container orchestration |
-| **CI/CD** | GitHub Actions | Automated pipelines |
-| **Registry** | Docker Hub | Container image storage |
-| **Ingress** | NGINX Ingress Controller | Load balancing & routing |
-| **TLS** | cert-manager + Let's Encrypt | SSL certificates |
-| **Monitoring** | Prometheus + Grafana | Observability stack |
-| **Security** | Trivy | Vulnerability scanning |
+- **Cloud Provider**: AWS (ap-south-1 region)
+- **Infrastructure**: Terraform, Amazon EKS
+- **Containerization**: Docker, Docker Hub Registry
+- **Orchestration**: Kubernetes, Helm
+- **CI/CD**: GitHub Actions
+- **Monitoring**: Prometheus, Grafana
+- **Ingress**: NGINX Ingress Controller
+- **DNS & TLS**: Cloudflare
+- **Security**: cert-manager, RBAC, Security Contexts
 
 ## 📋 Prerequisites
 
@@ -348,78 +345,7 @@ This project demonstrates a complete cloud-native infrastructure setup featuring
 - **Security**: Cloudflare TLS certificates, container security contexts
 - **Multi-Environment**: Separate staging and production environments
 
-## 🏗️ Architecture
-
-```mermaid
-graph TB
-    subgraph "GitHub"
-        A[GitHub Repository]
-        B[GitHub Actions]
-    end
-    
-    subgraph "Docker Hub"
-        P[Frontend Images]
-    end
-    
-    subgraph "AWS Cloud - ap-south-1"
-        subgraph "VPC"
-            C[EKS Cluster]
-            subgraph "EKS Nodes"
-                D[Node Group]
-            end
-        end
-        E[Application Load Balancer]
-    end
-    
-    subgraph "Cloudflare"
-        G[DNS - nainika.store]
-        H[TLS Certificates]
-    end
-    
-    subgraph "K8s Namespaces"
-        subgraph "prod"
-            I[Frontend App - Prod]
-            J[Ingress - Prod]
-        end
-        subgraph "stage"
-            K[Frontend App - Stage]
-            L[Ingress - Stage]
-        end
-        subgraph "monitoring"
-            M[Prometheus]
-            N[Grafana]
-        end
-        subgraph "ingress-nginx"
-            O[NGINX Ingress Controller]
-        end
-    end
-    
-    A --> B
-    B -->|Terraform Apply| C
-    B -->|Docker Build & Push| P
-    B -->|Helm Deploy| I
-    B -->|Helm Deploy| K
-    G --> E
-    E --> O
-    O --> J
-    O --> L
-    J --> I
-    L --> K
-```
-
-## 🛠️ Technology Stack
-
-- **Cloud Provider**: AWS (ap-south-1 region)
-- **Infrastructure**: Terraform, Amazon EKS
-- **Containerization**: Docker, Docker Hub Registry
-- **Orchestration**: Kubernetes, Helm
-- **CI/CD**: GitHub Actions
-- **Monitoring**: Prometheus, Grafana
-- **Ingress**: NGINX Ingress Controller
-- **DNS & TLS**: Cloudflare
-- **Security**: cert-manager, RBAC, Security Contexts
-
-## 📦 Project Structure
+##  Project Structure
 
 ```
 .

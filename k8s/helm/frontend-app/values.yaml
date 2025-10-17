@@ -1,5 +1,5 @@
 # Default values for frontend-app
-replicaCount: 2
+replicaCount: 1  # Reduced for demo static pages
 
 image:
   repository: zeusdev27/myhello-app
@@ -59,11 +59,11 @@ ingress:
 
 resources:
   limits:
-    cpu: 200m
-    memory: 256Mi
+    cpu: 50m      # Reduced for static pages
+    memory: 64Mi  # Reduced for static pages
   requests:
-    cpu: 100m
-    memory: 128Mi
+    cpu: 20m      # Reduced for static pages
+    memory: 32Mi  # Reduced for static pages
 
 autoscaling:
   enabled: false

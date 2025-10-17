@@ -9,11 +9,11 @@ image:
 
 resources:
   limits:
-    cpu: 300m
-    memory: 256Mi
+    cpu: 50m      # Reduced for static pages
+    memory: 64Mi  # Reduced for static pages
   requests:
-    cpu: 100m
-    memory: 128Mi
+    cpu: 20m      # Reduced for static pages
+    memory: 32Mi  # Reduced for static pages
 
 autoscaling:
   enabled: false

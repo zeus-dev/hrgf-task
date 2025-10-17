@@ -35,19 +35,7 @@ module "eks" {
         }
       }
     }
-    # Add your CI/CD pipeline IAM role here when available
-    # Example:
-    # pipeline_role = {
-    #   principal_arn = "arn:aws:iam::148450584786:role/your-pipeline-role"
-    #   policy_associations = {
-    #     admin = {
-    #       policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-    #       access_scope = {
-    #         type = "cluster"
-    #       }
-    #     }
-    #   }
-    # }
+   
   }
 
   # EKS Managed Node Group

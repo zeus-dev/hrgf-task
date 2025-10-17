@@ -223,6 +223,7 @@ jobs:
           terraform apply -auto-approve -input=false
           terraform output -json > outputs.json
       
+
       - name: Parse Terraform Outputs
         id: outputs
         run: |
@@ -232,6 +233,21 @@ jobs:
           echo "autoscaler_role_arn=$AUTOSCALER_ROLE_ARN" >> $GITHUB_OUTPUT
           echo "Cluster: $CLUSTER_NAME"
           echo "Autoscaler Role ARN: $AUTOSCALER_ROLE_ARN"
+
+      - name: Install Cluster Autoscaler
+        run: |
+          set -e
+          helm repo add autoscaler https://kubernetes.github.io/autoscaler
+          helm repo update
+          helm upgrade --install cluster-autoscaler autoscaler/cluster-autoscaler \
+            --namespace kube-system \
+            --set autoDiscovery.clusterName=${{ steps.outputs.outputs.cluster_name }} \
+            --set awsRegion=${{ env.AWS_REGION }} \
+            --set rbac.serviceAccount.create=true \
+            --set rbac.serviceAccount.name=cluster-autoscaler \
+            --set rbac.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="${{ steps.outputs.outputs.autoscaler_role_arn }}" \
+            --wait --timeout=300s
+          echo "Cluster Autoscaler installed successfully"
       
       - name: Configure EKS access for pipeline
         run: |

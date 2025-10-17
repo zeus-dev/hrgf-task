@@ -49,7 +49,7 @@ variable "min_size" {
 variable "max_size" {
   description = "Maximum number of worker nodes"
   type        = number
-  default     = 3  # Allow 1 extra node for monitoring
+  default     = 3 # Allow 1 extra node for monitoring
 }
 
 variable "tags" {

@@ -9,10 +9,10 @@ image:
 
 resources:
   limits:
-    cpu: 50m      # Reduced for static pages
+    cpu: 75m      # Reduced for static pages
     memory: 64Mi  # Reduced for static pages
   requests:
-    cpu: 20m      # Reduced for static pages
+    cpu: 25m      # Reduced for static pages
     memory: 32Mi  # Reduced for static pages
 
 autoscaling:

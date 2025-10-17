@@ -32,101 +32,88 @@ This project demonstrates a complete automated Kubernetes deployment pipeline fo
 
 ```mermaid
 graph TB
-    subgraph "Developer"
-        A[Git Push to main/develop]
-    end
-
     subgraph "GitHub"
-        B[Git Repository] --> C[GitHub Actions CI/CD]
+        A[GitHub Repository]
+        B[GitHub Actions]
     end
-
+    
     subgraph "Docker Hub"
-        D[Docker Images<br/>zeusdev27/myhello-app]
+        P[Frontend Images]
     end
-
-    subgraph "AWS Cloud (ap-south-1)"
-        subgraph "VPC & Networking"
-            E[EKS Cluster<br/>nasa-eks]
-            F[Node Groups<br/>t3.small instances]
-            G[S3 Backend<br/>Terraform State]
-            H[DynamoDB<br/>State Locking]
-        end
-
-        subgraph "Kubernetes Components"
-            I[NGINX Ingress<br/>Controller]
-            J[cert-manager<br/>Let's Encrypt]
-        end
-
-        subgraph "Namespaces"
-            subgraph "prod"
-                K[Frontend App<br/>3 replicas]
-                L[Ingress<br/>prod.nainika.store]
-                M[TLS Certificate<br/>Let's Encrypt]
-            end
-            subgraph "stage"
-                N[Frontend App<br/>2 replicas]
-                O[Ingress<br/>stage.nainika.store]
-                P[TLS Certificate<br/>Let's Encrypt]
-            end
-            subgraph "monitoring"
-                Q[Prometheus<br/>Metrics Collection]
-                R[Grafana<br/>Dashboards]
-                S[Ingress<br/>grafana.nainika.store]
-                T[TLS Certificate<br/>Let's Encrypt]
+    
+    subgraph "AWS Cloud - ap-south-1"
+        subgraph "VPC"
+            C[EKS Cluster]
+            subgraph "EKS Nodes"
+                D[Node Group]
             end
         end
+        E[Application Load Balancer]
     end
-
-    subgraph "External Services"
-        U[Let's Encrypt<br/>ACME Server]
-        V[Cloudflare<br/>DNS Records<br/>Full Strict SSL]
+    
+    subgraph "Cloudflare"
+        G[DNS - nainika.store]
+        H[TLS Certificates]
     end
-
+    
+    subgraph "K8s Namespaces"
+        subgraph "prod"
+            I[Frontend App - Prod]
+            J[Ingress - Prod]
+        end
+        subgraph "stage"
+            K[Frontend App - Stage]
+            L[Ingress - Stage]
+        end
+        subgraph "monitoring"
+            M[Prometheus]
+            N[Grafana]
+        end
+        subgraph "ingress-nginx"
+            O[NGINX Ingress Controller]
+        end
+    end
+    
     A --> B
-    C -->|Terraform Plan/Apply| E
-    C -->|Docker Build & Scan| D
-    C -->|Helm Deploy| K
-    C -->|Helm Deploy| N
-    C -->|Helm Deploy| Q
-    E --> F
-    E --> G
-    E --> H
-    I --> L
-    I --> O
-    I --> S
-    J --> M
-    J --> P
-    J --> T
-    J -->|Requests Certs| U
-    V -->|DNS-01 Challenge| U
+    B -->|Terraform Apply| C
+    B -->|Docker Build & Push| P
+    B -->|Helm Deploy| I
+    B -->|Helm Deploy| K
+    G --> E
+    E --> O
+    O --> J
+    O --> L
+    J --> I
+    L --> K
 ```
 
-### Architecture Flow
-1. **Code Push** → GitHub repository triggers CI/CD pipeline
-2. **Infrastructure** → Terraform provisions EKS cluster, VPC, and networking
-3. **Container Build** → Multi-stage Docker build with security scanning
-4. **Deployment** → Helm charts deploy applications to respective namespaces
-5. **Ingress & TLS** → NGINX controller routes traffic with Let's Encrypt certificates
-6. **Monitoring** → Prometheus collects metrics, Grafana provides dashboards
+## 📦 Project Structure
 
-### Key Components
-- **Multi-environment**: Separate prod/stage namespaces with dedicated resources
-- **Security**: TLS encryption, vulnerability scanning, RBAC, non-root containers
-- **Scalability**: Configurable replicas, resource limits, horizontal pod autoscaling ready
-- **Observability**: Comprehensive monitoring with Prometheus metrics and Grafana visualization
-- **Automation**: Fully automated CI/CD with security gates and rollback capabilities
-
-### Generate PNG Diagram
-To generate a PNG image of the architecture diagram:
-```bash
-# Install Mermaid CLI
-npm install -g @mermaid-js/mermaid-cli
-
-# Generate PNG from Mermaid file
-mmdc -i architecture.mmd -o architecture.png -t dark -b transparent
 ```
-
-The `architecture.mmd` file is included in the repository root for PNG generation.
+.
+├── frontend/                 # Frontend application
+│   ├── src/                 # HTML/CSS/JS source code
+│   ├── Dockerfile           # Multi-stage container build
+│   ├── nginx.conf           # NGINX configuration
+│   └── package.json         # Dependencies and scripts
+├── terraform/               # Infrastructure as Code
+│   ├── main.tf             # EKS and addon configurations
+│   ├── vpc.tf              # VPC and networking
+│   ├── eks.tf              # EKS cluster configuration
+│   ├── variables.tf        # Input variables
+│   ├── outputs.tf          # Output values
+│   └── terraform.tfvars    # Environment-specific values
+├── k8s/                    # Kubernetes configurations
+│   ├── helm/frontend-app/  # Helm chart for application
+│   ├── namespaces/         # Namespace definitions
+│   ├── ingress/            # Ingress configurations
+│   ├── monitoring/         # Prometheus & Grafana setup
+│   └── tls/                # TLS certificate configurations
+└── .github/workflows/      # CI/CD pipelines
+    ├── terraform-apply.yaml
+    ├── build-deploy-prod.yaml
+    └── build-deploy-stage.yaml
+```
 
 ## 🛠️ Technology Stack
 
@@ -140,88 +127,7 @@ The `architecture.mmd` file is included in the repository root for PNG generatio
 - **DNS & TLS**: Cloudflare
 - **Security**: cert-manager, RBAC, Security Contexts
 
-## 📋 Prerequisites
-
-- AWS CLI configured with EKS permissions
-- Docker installed locally
-- kubectl installed
-- Helm 3.x installed
-- Terraform >= 1.0
-- GitHub repository with secrets configured
-
-### Required GitHub Secrets
-```
-AWS_ACCESS_KEY_ID          # AWS credentials
-AWS_SECRET_ACCESS_KEY      # AWS credentials
-DOCKER_HUB_USERNAME        # Docker Hub registry
-DOCKER_HUB_ACCESS_TOKEN    # Docker Hub access token
-GRAFANA_ADMIN_PASSWORD     # Monitoring admin password
-```
-
-## 🚀 Quick Start
-
-### 1. Clone and Setup
-```bash
-git clone https://github.com/zeus-dev/hrgf-task.git
-cd hrgf-task
-```
-
-### 2. Infrastructure Provisioning
-```bash
-cd terraform
-terraform init
-terraform plan
-terraform apply
-```
-
-### 3. Configure Kubernetes Access
-```bash
-aws eks update-kubeconfig --region ap-south-1 --name nasa-eks
-```
-
-### 4. Deploy Application
-The CI/CD pipeline automatically deploys on git push. For manual deployment:
-```bash
-# Deploy to staging
-helm upgrade --install frontend-app-stage ./k8s/helm/frontend-app \
-  -f ./k8s/helm/frontend-app/value-stage.yaml -n stage --create-namespace
-
-# Deploy to production
-helm upgrade --install frontend-app-prod ./k8s/helm/frontend-app \
-  -f ./k8s/helm/frontend-app/value-prod.yaml -n prod --create-namespace
-```
-
-## 📁 Project Structure
-
-```
-├── frontend/                 # Web application source
-│   ├── src/index.html       # Simple HTML application
-│   ├── Dockerfile          # Multi-stage container build
-│   ├── nginx.conf          # NGINX web server config
-│   └── package.json        # Node.js dependencies
-├── terraform/              # Infrastructure as Code
-│   ├── main.tf            # EKS cluster configuration
-│   ├── vpc.tf             # VPC and networking setup
-│   ├── eks.tf             # EKS-specific resources
-│   ├── variables.tf       # Input variables
-│   ├── outputs.tf         # Output values
-│   └── backend.tf         # S3 backend configuration
-├── k8s/                   # Kubernetes manifests
-│   ├── helm/frontend-app/ # Helm chart for application
-│   │   ├── Chart.yaml    # Chart metadata
-│   │   ├── values.yaml   # Default values
-│   │   ├── value-prod.yaml  # Production overrides
-│   │   └── value-stage.yaml # Staging overrides
-│   ├── namespaces/       # Namespace definitions
-│   ├── monitoring/       # Prometheus & Grafana config
-│   └── tls/              # Certificate configurations
-└── .github/workflows/    # CI/CD pipelines
-    ├── terraform-apply.yaml     # Infrastructure pipeline
-    ├── build-deploy-prod.yaml   # Production deployment
-    └── build-deploy-stage.yaml  # Staging deployment
-```
-
-## 🔄 CI/CD Pipeline
+##  CI/CD Pipeline
 
 ### Infrastructure Pipeline (`terraform-apply.yaml`)
 - **Trigger**: Changes to `terraform/` directory
@@ -344,34 +250,6 @@ This project demonstrates a complete cloud-native infrastructure setup featuring
 - **Monitoring Stack**: Prometheus & Grafana with pre-configured dashboards
 - **Security**: Cloudflare TLS certificates, container security contexts
 - **Multi-Environment**: Separate staging and production environments
-
-##  Project Structure
-
-```
-.
-├── frontend/                 # Frontend application
-│   ├── src/                 # HTML/CSS/JS source code
-│   ├── Dockerfile           # Multi-stage container build
-│   ├── nginx.conf           # NGINX configuration
-│   └── package.json         # Dependencies and scripts
-├── terraform/               # Infrastructure as Code
-│   ├── main.tf             # EKS and addon configurations
-│   ├── vpc.tf              # VPC and networking
-│   ├── eks.tf              # EKS cluster configuration
-│   ├── variables.tf        # Input variables
-│   ├── outputs.tf          # Output values
-│   └── terraform.tfvars    # Environment-specific values
-├── k8s/                    # Kubernetes configurations
-│   ├── helm/frontend-app/  # Helm chart for application
-│   ├── namespaces/         # Namespace definitions
-│   ├── ingress/            # Ingress configurations
-│   ├── monitoring/         # Prometheus & Grafana setup
-│   └── tls/                # TLS certificate configurations
-└── .github/workflows/      # CI/CD pipelines
-    ├── terraform-apply.yaml
-    ├── build-deploy-prod.yaml
-    └── build-deploy-stage.yaml
-```
 
 ## 🚀 Getting Started
 

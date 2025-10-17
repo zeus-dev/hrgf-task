@@ -434,6 +434,11 @@ jobs:
           
           echo "Monitoring stack installed successfully"
       
+      - name: Apply Grafana Ingress
+        run: |
+          kubectl apply -f ../k8s/ingress/grafana-ingress.yaml
+          echo "Grafana ingress applied successfully"
+      
       - name: Deployment Summary
         run: |
           echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY

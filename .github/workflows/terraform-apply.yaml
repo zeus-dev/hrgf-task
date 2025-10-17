@@ -287,7 +287,7 @@ jobs:
             --set extraArgs.skip-nodes-with-system-pods=false \
             --set extraArgs.scale-down-utilization-threshold=0.7 \
             --set extraArgs.scale-down-unneeded-time=2m \
-            --wait --timeout=300s
+            --wait --timeout=600s
           
           echo "Cluster Autoscaler installed successfully"
       

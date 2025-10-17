@@ -5,7 +5,7 @@
 
 ## 🎯 Overview
 
-This project demonstrates a complete automated Kubernetes deployment pipeline for a "Hello World" web application. The solution implements modern DevOps practices using Infrastructure as Code, containerization, Kubernetes orchestration, and automated CI/CD pipelines.
+This project demonstrates a complete automated Kubernetes deployment pipeline for a "Nainika store" web application. The solution implements modern DevOps practices using Infrastructure as Code, containerization, Kubernetes orchestration, and automated CI/CD pipelines.
 
 ### ✅ Core Requirements Implemented
 

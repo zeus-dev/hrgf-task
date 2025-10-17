@@ -20,18 +20,18 @@ prometheus:
             requests:
               storage: 10Gi
     
-    # Resource limits
+    # Resource limits - Reduced for Free Tier
     resources:
       limits:
-        cpu: 1000m
-        memory: 2Gi
+        cpu: 500m     # Reduced from 1000m
+        memory: 1Gi   # Reduced from 2Gi
       requests:
-        cpu: 500m
-        memory: 1Gi
+        cpu: 250m     # Reduced from 500m
+        memory: 512Mi # Reduced from 1Gi
     
-    # Retention policy
-    retention: 30d
-    retentionSize: 9GB
+    # Retention policy - Reduced for Free Tier
+    retention: 7d      # Reduced from 30d
+    retentionSize: 2GB # Reduced from 9GB
     
     # Service monitor selector
     serviceMonitorSelectorNilUsesHelmValues: false
@@ -58,26 +58,26 @@ prometheus:
 # Grafana configuration
 grafana:
   enabled: true
-  
+
   # Admin credentials - uses GitHub secret for security
   # adminPassword: "admin123!" # Don't use hardcoded passwords in production
   adminPassword: ${GRAFANA_ADMIN_PASSWORD}
-  
-  # Persistence
+
+  # Minimal resources for Free Tier
+  resources:
+    limits:
+      cpu: 200m      # Reduced from 500m
+      memory: 256Mi  # Reduced from 1Gi
+    requests:
+      cpu: 100m      # Reduced from 250m
+      memory: 128Mi  # Reduced from 512Mi
+
+  # Smaller persistence
   persistence:
     enabled: true
     storageClassName: "gp2"
-    size: 1Gi
-  
-  # Resource limits
-  resources:
-    limits:
-      cpu: 500m
-      memory: 1Gi
-    requests:
-      cpu: 250m
-      memory: 512Mi
-  
+    size: 1Gi  # Keep small
+
   # Ingress configuration
   ingress:
     enabled: true

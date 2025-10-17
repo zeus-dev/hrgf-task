@@ -31,7 +31,7 @@ variable "environment" {
 variable "instance_types" {
   description = "EC2 instance types for EKS nodes"
   type        = list(string)
-  default     = ["t3.medium"] # Upgraded for monitoring stack
+  default     = ["t3.small"] # Keep Free Tier eligible
 }
 
 variable "desired_size" {
@@ -49,7 +49,7 @@ variable "min_size" {
 variable "max_size" {
   description = "Maximum number of worker nodes"
   type        = number
-  default     = 5  # Increased for autoscaling
+  default     = 3  # Allow 1 extra node for monitoring
 }
 
 variable "tags" {

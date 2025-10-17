@@ -396,7 +396,7 @@ jobs:
             --set nodeExporter.enabled=true \
             --set grafana.enabled=true \
             --set prometheus.enabled=true \
-            --set alertmanager.enabled=true \
+            --set alertmanager.enabled=false \
             --set prometheusOperator.enabled=true \
             --set defaultRules.enabled=true \
             --set crds.enabled=true \
